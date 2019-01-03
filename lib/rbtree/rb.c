@@ -14,6 +14,7 @@
 
 #include <kernel.h>
 #include <misc/rb.h>
+#include <stdbool.h>
 
 enum rb_color { RED = 0, BLACK = 1 };
 
@@ -26,7 +27,7 @@ static struct rbnode *get_child(struct rbnode *n, int side)
 
 	uintptr_t l = (uintptr_t) n->children[0];
 
-	l &= ~1ul;
+	l &= ~1UL;
 	return (struct rbnode *) l;
 }
 
@@ -39,22 +40,22 @@ static void set_child(struct rbnode *n, int side, void *val)
 		uintptr_t old = (uintptr_t) n->children[0];
 		uintptr_t new = (uintptr_t) val;
 
-		n->children[0] = (void *) (new | (old & 1ul));
+		n->children[0] = (void *) (new | (old & 1UL));
 	}
 }
 
 static enum rb_color get_color(struct rbnode *n)
 {
 	CHECK(n);
-	return ((uintptr_t)n->children[0]) & 1ul;
+	return ((uintptr_t)n->children[0]) & 1UL;
 }
 
-static int is_black(struct rbnode *n)
+static bool is_black(struct rbnode *n)
 {
 	return get_color(n) == BLACK;
 }
 
-static int is_red(struct rbnode *n)
+static bool is_red(struct rbnode *n)
 {
 	return get_color(n) == RED;
 }
@@ -65,7 +66,7 @@ static void set_color(struct rbnode *n, enum rb_color color)
 
 	uintptr_t *p = (void *) &n->children[0];
 
-	*p = (*p & ~1ul) | color;
+	*p = (*p & ~1UL) | color;
 }
 
 /* Searches the tree down to a node that is either identical with the
@@ -100,8 +101,9 @@ struct rbnode *_rb_get_minmax(struct rbtree *tree, int side)
 {
 	struct rbnode *n;
 
-	for (n = tree->root; n && get_child(n, side); n = get_child(n, side))
+	for (n = tree->root; n && get_child(n, side); n = get_child(n, side)) {
 		;
+	}
 	return n;
 }
 
@@ -172,7 +174,7 @@ static void fix_extra_red(struct rbnode **stack, int stacksz)
 		int side = get_side(grandparent, parent);
 		struct rbnode *aunt = get_child(grandparent, !side);
 
-		if (aunt && is_red(aunt)) {
+		if ((aunt != NULL) && is_red(aunt)) {
 			set_color(grandparent, RED);
 			set_color(parent, BLACK);
 			set_color(aunt, BLACK);
@@ -227,7 +229,7 @@ void rb_insert(struct rbtree *tree, struct rbnode *node)
 
 	struct rbnode *parent = stack[stacksz - 1];
 
-	int side = !tree->lessthan_fn(node, parent);
+	int side = tree->lessthan_fn(node, parent) ? 0 : 1;
 
 	set_child(parent, side, node);
 	set_color(node, RED);
@@ -431,7 +433,7 @@ void rb_remove(struct rbtree *tree, struct rbnode *node)
 
 	struct rbnode *child = get_child(node, 0);
 
-	if (!child) {
+	if (child == NULL) {
 		child = get_child(node, 1);
 	}
 
@@ -481,7 +483,7 @@ void rb_remove(struct rbtree *tree, struct rbnode *node)
 
 void _rb_walk(struct rbnode *node, rb_visit_t visit_fn, void *cookie)
 {
-	if (node) {
+	if (node != NULL) {
 		_rb_walk(get_child(node, 0), visit_fn, cookie);
 		visit_fn(node, cookie);
 		_rb_walk(get_child(node, 1), visit_fn, cookie);
@@ -498,7 +500,7 @@ int _rb_is_black(struct rbnode *node)
 	return is_black(node);
 }
 
-int rb_contains(struct rbtree *tree, struct rbnode *node)
+bool rb_contains(struct rbtree *tree, struct rbnode *node)
 {
 	struct rbnode *n = tree->root;
 
@@ -557,7 +559,7 @@ struct rbnode *_rb_foreach_next(struct rbtree *tree, struct _rb_foreach *f)
 	 * it's right subtree if it has a right child
 	 */
 	n = get_child(f->stack[f->top], 1);
-	if (n) {
+	if (n != NULL) {
 		return stack_left_limb(n, f);
 	}
 

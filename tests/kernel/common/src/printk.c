@@ -31,8 +31,8 @@ char *expected = "22 113 10000 32768 40000 22\n"
 
 size_t stv = 22;
 unsigned char uc = 'q';
-unsigned short int usi = 10000;
-unsigned int ui = 32768;
+unsigned short int usi = 10000U;
+unsigned int ui = 32768U;
 unsigned long ul = 40000;
 
 /* FIXME
@@ -93,7 +93,7 @@ void test_printk(void)
 	ram_console[pos] = '\0';
 	zassert_true((strcmp(ram_console, expected) == 0), "printk failed");
 
-	memset(ram_console, 0, sizeof(ram_console));
+	(void)memset(ram_console, 0, sizeof(ram_console));
 	count = 0;
 
 	count += snprintk(ram_console + count, sizeof(ram_console) - count,

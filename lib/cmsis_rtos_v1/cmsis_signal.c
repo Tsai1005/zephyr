@@ -7,7 +7,8 @@
 #include <kernel_structs.h>
 #include <cmsis_os.h>
 
-#define NSEC_PER_MSEC (NSEC_PER_USEC * USEC_PER_MSEC)
+#define NSEC_PER_MSEC		(NSEC_PER_USEC * USEC_PER_MSEC)
+#define MAX_VALID_SIGNAL_VAL	((1 << osFeature_Signals) - 1)
 
 void *k_thread_other_custom_data_get(struct k_thread *thread_id)
 {
@@ -20,21 +21,22 @@ void *k_thread_other_custom_data_get(struct k_thread *thread_id)
 int32_t osSignalSet(osThreadId thread_id, int32_t signals)
 {
 	int sig, key;
+
+	if ((thread_id == NULL) || (!signals) ||
+		(signals & 0x80000000) || (signals > MAX_VALID_SIGNAL_VAL)) {
+		return 0x80000000;
+	}
+
 	osThreadDef_t *thread_def =
 		(osThreadDef_t *)k_thread_other_custom_data_get(
 						(struct k_thread *)thread_id);
-
-	if (_is_in_isr() || (thread_id == NULL) ||
-		(signals >= (1 << (osFeature_Signals + 1)))) {
-		return 0x80000000;
-	}
 
 	key = irq_lock();
 	sig = thread_def->signal_results;
 	thread_def->signal_results |= signals;
 	irq_unlock(key);
 
-	k_poll_signal(thread_def->poll_signal, signals);
+	k_poll_signal_raise(thread_def->poll_signal, signals);
 
 	return sig;
 }
@@ -45,14 +47,15 @@ int32_t osSignalSet(osThreadId thread_id, int32_t signals)
 int32_t osSignalClear(osThreadId thread_id, int32_t signals)
 {
 	int sig, key;
+
+	if (k_is_in_isr() || (thread_id == NULL) || (!signals) ||
+		(signals & 0x80000000) || (signals > MAX_VALID_SIGNAL_VAL)) {
+		return 0x80000000;
+	}
+
 	osThreadDef_t *thread_def =
 		(osThreadDef_t *)k_thread_other_custom_data_get(
 						(struct k_thread *)thread_id);
-
-	if (_is_in_isr() || (thread_id == NULL) ||
-		(signals >= (1 << (osFeature_Signals + 1)))) {
-		return 0x80000000;
-	}
 
 	key = irq_lock();
 	sig = thread_def->signal_results;
@@ -73,13 +76,13 @@ osEvent osSignalWait(int32_t signals, uint32_t millisec)
 	u32_t time_delta_ms, timeout = millisec;
 	u64_t time_stamp_start, hwclk_cycles_delta, time_delta_ns;
 
-	if (_is_in_isr()) {
+	if (k_is_in_isr()) {
 		evt.status = osErrorISR;
 		return evt;
 	}
 
 	/* Check if signals is within the permitted range */
-	if (signals >= (1 << (osFeature_Signals + 1))) {
+	if ((signals & 0x80000000) || (signals > MAX_VALID_SIGNAL_VAL)) {
 		evt.status = osErrorValue;
 		return evt;
 	}
@@ -145,7 +148,7 @@ osEvent osSignalWait(int32_t signals, uint32_t millisec)
 		if (timeout > time_delta_ms) {
 			timeout -= time_delta_ms;
 		} else {
-			timeout = 0;
+			timeout = 0U;
 		}
 	}
 

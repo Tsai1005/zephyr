@@ -3,17 +3,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef _KSWAP_H
-#define _KSWAP_H
+#ifndef ZEPHYR_KERNEL_INCLUDE_KSWAP_H_
+#define ZEPHYR_KERNEL_INCLUDE_KSWAP_H_
 
 #include <ksched.h>
 #include <kernel_arch_func.h>
-
-#ifdef CONFIG_TIMESLICING
-extern void _update_time_slice_before_swap(void);
-#else
-#define _update_time_slice_before_swap() /**/
-#endif
 
 #ifdef CONFIG_STACK_SENTINEL
 extern void _check_stack_sentinel(void);
@@ -40,7 +34,7 @@ void _smp_release_global_lock(struct k_thread *thread);
  * Needed for SMP, where the scheduler requires spinlocking that we
  * don't want to have to do in per-architecture assembly.
  */
-static inline unsigned int _Swap(unsigned int key)
+static inline int _Swap(unsigned int key)
 {
 	struct k_thread *new_thread, *old_thread;
 	int ret = 0;
@@ -53,7 +47,6 @@ static inline unsigned int _Swap(unsigned int key)
 	old_thread = _current;
 
 	_check_stack_sentinel();
-	_update_time_slice_before_swap();
 
 #ifdef CONFIG_TRACING
 	sys_trace_thread_switched_out();
@@ -90,24 +83,27 @@ static inline unsigned int _Swap(unsigned int key)
 
 #else /* !CONFIG_USE_SWITCH */
 
-extern unsigned int __swap(unsigned int key);
+extern int __swap(unsigned int key);
 
-static inline unsigned int _Swap(unsigned int key)
+static inline int _Swap(unsigned int key)
 {
-	unsigned int ret;
+	int ret;
 	_check_stack_sentinel();
-	_update_time_slice_before_swap();
 
+#ifndef CONFIG_ARM
 #ifdef CONFIG_TRACING
 	sys_trace_thread_switched_out();
 #endif
+#endif
 	ret = __swap(key);
+#ifndef CONFIG_ARM
 #ifdef CONFIG_TRACING
 	sys_trace_thread_switched_in();
+#endif
 #endif
 
 	return ret;
 }
 #endif
 
-#endif /* _KSWAP_H */
+#endif /* ZEPHYR_KERNEL_INCLUDE_KSWAP_H_ */

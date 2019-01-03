@@ -40,9 +40,12 @@ static void _printk_hex_ulong(out_func_t out, void *ctx,
  * @brief Default character output routine that does nothing
  * @param c Character to swallow
  *
+ * Note this is defined as a weak symbol, allowing architecture code
+ * to override it where possible to enable very early logging.
+ *
  * @return 0
  */
-static int _nop_char_out(int c)
+ __attribute__((weak)) int z_arch_printk_char_out(int c)
 {
 	ARG_UNUSED(c);
 
@@ -50,7 +53,7 @@ static int _nop_char_out(int c)
 	return 0;
 }
 
-static int (*_char_out)(int) = _nop_char_out;
+int (*_char_out)(int) = z_arch_printk_char_out;
 
 /**
  * @brief Install the character output routine for printk
@@ -236,7 +239,7 @@ struct buf_out_context {
 static void buf_flush(struct buf_out_context *ctx)
 {
 	k_str_out(ctx->buf, ctx->buf_count);
-	ctx->buf_count = 0;
+	ctx->buf_count = 0U;
 }
 
 static int buf_char_out(int c, void *ctx_p)
@@ -266,7 +269,7 @@ static int char_out(int c, void *ctx_p)
 }
 
 #ifdef CONFIG_USERSPACE
-int vprintk(const char *fmt, va_list ap)
+void vprintk(const char *fmt, va_list ap)
 {
 	if (_is_user_context()) {
 		struct buf_out_context ctx = { 0 };
@@ -276,23 +279,18 @@ int vprintk(const char *fmt, va_list ap)
 		if (ctx.buf_count) {
 			buf_flush(&ctx);
 		}
-		return ctx.count;
 	} else {
 		struct out_context ctx = { 0 };
 
 		_vprintk(char_out, &ctx, fmt, ap);
-
-		return ctx.count;
 	}
 }
 #else
-int vprintk(const char *fmt, va_list ap)
+void vprintk(const char *fmt, va_list ap)
 {
 	struct out_context ctx = { 0 };
 
 	_vprintk(char_out, &ctx, fmt, ap);
-
-	return ctx.count;
 }
 #endif
 
@@ -331,23 +329,20 @@ Z_SYSCALL_HANDLER(k_str_out, c, n)
  *
  * @param fmt formatted string to output
  *
- * @return Number of characters printed
+ * @return N/A
  */
-int printk(const char *fmt, ...)
+void printk(const char *fmt, ...)
 {
-	int ret;
 	va_list ap;
 
 	va_start(ap, fmt);
 
 	if (IS_ENABLED(CONFIG_LOG_PRINTK)) {
-		ret = log_printk(fmt, ap);
+		log_printk(fmt, ap);
 	} else {
-		ret = vprintk(fmt, ap);
+		vprintk(fmt, ap);
 	}
 	va_end(ap);
-
-	return ret;
 }
 
 /**

@@ -11,8 +11,8 @@
  * Exception/interrupt context helpers.
  */
 
-#ifndef _ARM_CORTEXM_ISR__H_
-#define _ARM_CORTEXM_ISR__H_
+#ifndef ZEPHYR_ARCH_ARM_INCLUDE_CORTEX_M_EXC_H_
+#define ZEPHYR_ARCH_ARM_INCLUDE_CORTEX_M_EXC_H_
 
 #include <arch/cpu.h>
 
@@ -49,7 +49,7 @@ extern volatile irq_offload_routine_t offload_routine;
  *
  * @return 1 if in ISR, 0 if not.
  */
-static ALWAYS_INLINE int _IsInIsr(void)
+static ALWAYS_INLINE bool _IsInIsr(void)
 {
 	u32_t vector = __get_IPSR();
 
@@ -167,4 +167,4 @@ static ALWAYS_INLINE void _ClearFaults(void)
 #endif
 
 
-#endif /* _ARM_CORTEXM_ISR__H_ */
+#endif /* ZEPHYR_ARCH_ARM_INCLUDE_CORTEX_M_EXC_H_ */

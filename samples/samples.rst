@@ -5,11 +5,12 @@ Samples and Demos
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :glob:
 
    kernel
    basic/*
+   userspace/*
    subsys/subsys.rst
    net/net.rst
    bluetooth/bluetooth.rst
@@ -19,6 +20,8 @@ Samples and Demos
    drivers/drivers.rst
    application_development/*
    display/*
+   shields/*
+   portability/*
 
 To add a new sample document, please use the template available under
 :file:`doc/templates/sample.tmpl`

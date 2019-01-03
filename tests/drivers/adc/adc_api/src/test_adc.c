@@ -20,7 +20,7 @@
 #if defined(CONFIG_BOARD_NRF51_PCA10028)
 
 #include <hal/nrf_adc.h>
-#define ADC_DEVICE_NAME		CONFIG_ADC_0_NAME
+#define ADC_DEVICE_NAME		DT_ADC_0_NAME
 #define ADC_RESOLUTION		10
 #define ADC_GAIN		ADC_GAIN_1_3
 #define ADC_REFERENCE		ADC_REF_INTERNAL
@@ -34,7 +34,7 @@
       defined(CONFIG_BOARD_NRF52840_PCA10056)
 
 #include <hal/nrf_saadc.h>
-#define ADC_DEVICE_NAME		CONFIG_ADC_0_NAME
+#define ADC_DEVICE_NAME		DT_ADC_0_NAME
 #define ADC_RESOLUTION		10
 #define ADC_GAIN		ADC_GAIN_1_6
 #define ADC_REFERENCE		ADC_REF_INTERNAL
@@ -46,7 +46,7 @@
 
 #elif defined(CONFIG_BOARD_FRDM_K64F)
 
-#define ADC_DEVICE_NAME		CONFIG_ADC_1_NAME
+#define ADC_DEVICE_NAME		DT_ADC_1_NAME
 #define ADC_RESOLUTION		12
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
@@ -56,7 +56,7 @@
 
 #elif defined(CONFIG_BOARD_FRDM_KL25Z)
 
-#define ADC_DEVICE_NAME		CONFIG_ADC_0_NAME
+#define ADC_DEVICE_NAME		DT_ADC_0_NAME
 #define ADC_RESOLUTION		12
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
@@ -66,7 +66,7 @@
 
 #elif defined(CONFIG_BOARD_FRDM_KW41Z)
 
-#define ADC_DEVICE_NAME		CONFIG_ADC_0_NAME
+#define ADC_DEVICE_NAME		DT_ADC_0_NAME
 #define ADC_RESOLUTION		12
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
@@ -76,7 +76,7 @@
 
 #elif defined(CONFIG_BOARD_HEXIWEAR_K64)
 
-#define ADC_DEVICE_NAME		CONFIG_ADC_0_NAME
+#define ADC_DEVICE_NAME		DT_ADC_0_NAME
 #define ADC_RESOLUTION		12
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
@@ -86,7 +86,7 @@
 
 #elif defined(CONFIG_BOARD_HEXIWEAR_KW40Z)
 
-#define ADC_DEVICE_NAME		CONFIG_ADC_0_NAME
+#define ADC_DEVICE_NAME		DT_ADC_0_NAME
 #define ADC_RESOLUTION		12
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
@@ -96,7 +96,7 @@
 
 #elif defined(CONFIG_BOARD_SAM_E70_XPLAINED)
 
-#define ADC_DEVICE_NAME		CONFIG_ADC_0_NAME
+#define ADC_DEVICE_NAME		DT_ADC_0_NAME
 #define ADC_RESOLUTION		12
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_EXTERNAL0
@@ -106,13 +106,22 @@
 
 #elif defined(CONFIG_BOARD_QUARK_SE_C1000_DEVBOARD_SS) || \
 	defined(CONFIG_BOARD_ARDUINO_101_SSS)
-#define ADC_DEVICE_NAME		CONFIG_ADC_0_NAME
+#define ADC_DEVICE_NAME		DT_ADC_0_NAME
 #define ADC_RESOLUTION		10
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
 #define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
 #define ADC_1ST_CHANNEL_ID	10
 #define ADC_2ND_CHANNEL_ID	11
+
+#elif defined(CONFIG_BOARD_QUARK_D2000_CRB)
+#define ADC_DEVICE_NAME		DT_ADC_0_NAME
+#define ADC_RESOLUTION		10
+#define ADC_GAIN		ADC_GAIN_1
+#define ADC_REFERENCE		ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
+#define ADC_1ST_CHANNEL_ID	3
+#define ADC_2ND_CHANNEL_ID	4
 
 #else
 #error "Unsupported board."
@@ -159,7 +168,7 @@ static struct device *init_adc(void)
 		"Setting up of the second channel failed with code %d", ret);
 #endif /* defined(ADC_2ND_CHANNEL_ID) */
 
-	memset(m_sample_buffer, 0, sizeof(m_sample_buffer));
+	(void)memset(m_sample_buffer, 0, sizeof(m_sample_buffer));
 
 	return adc_dev;
 }
@@ -288,7 +297,7 @@ static int test_task_asynchronous_call(void)
 	int ret;
 	const struct adc_sequence_options options = {
 		.extra_samplings = 4,
-		.interval_us = 10,
+		.interval_us = 30,
 	};
 	const struct adc_sequence sequence = {
 		.options     = &options,

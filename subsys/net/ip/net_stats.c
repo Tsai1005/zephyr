@@ -5,10 +5,13 @@
  */
 
 #if defined(CONFIG_NET_STATISTICS_PERIODIC_OUTPUT)
-#define SYS_LOG_DOMAIN "net/stats"
-#define NET_SYS_LOG_LEVEL SYS_LOG_LEVEL_INFO
-#define NET_LOG_ENABLED 1
+#define NET_LOG_LEVEL LOG_LEVEL_INF
+#else
+#define NET_LOG_LEVEL CONFIG_NET_STATISTICS_LOG_LEVEL
 #endif
+
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_stats, NET_LOG_LEVEL);
 
 #include <kernel.h>
 #include <string.h>

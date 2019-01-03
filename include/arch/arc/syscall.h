@@ -13,8 +13,8 @@
  * (include/arch/syscall.h)
  */
 
-#ifndef _ARC_SYSCALL__H_
-#define _ARC_SYSCALL__H_
+#ifndef ZEPHYR_INCLUDE_ARCH_ARC_SYSCALL_H_
+#define ZEPHYR_INCLUDE_ARCH_ARC_SYSCALL_H_
 
 #define _TRAP_S_SCALL_IRQ_OFFLOAD		1
 #define _TRAP_S_CALL_RUNTIME_EXCEPT		2
@@ -24,6 +24,7 @@
 #ifndef _ASMLANGUAGE
 
 #include <zephyr/types.h>
+#include <stdbool.h>
 
 #ifdef CONFIG_CPU_ARCV2
 #include <arch/arc/v2/aux_regs.h>
@@ -172,7 +173,7 @@ static inline u32_t _arch_syscall_invoke0(u32_t call_id)
 	return ret;
 }
 
-static inline int _arch_is_user_context(void)
+static inline bool _arch_is_user_context(void)
 {
 	u32_t status;
 
@@ -182,7 +183,7 @@ static inline int _arch_is_user_context(void)
 			 : "=r"(status)
 			 : [status32] "i" (_ARC_V2_STATUS32));
 
-	return !(status & _ARC_V2_STATUS32_US);
+	return !(status & _ARC_V2_STATUS32_US) ? true : false;
 }
 
 #ifdef __cplusplus
@@ -191,4 +192,4 @@ static inline int _arch_is_user_context(void)
 
 #endif /* _ASMLANGUAGE */
 #endif /* CONFIG_USERSPACE */
-#endif /* _ARC_SYSCALL__H_ */
+#endif /* ZEPHYR_INCLUDE_ARCH_ARC_SYSCALL_H_ */

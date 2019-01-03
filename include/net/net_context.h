@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __NET_CONTEXT_H
-#define __NET_CONTEXT_H
+#ifndef ZEPHYR_INCLUDE_NET_NET_CONTEXT_H_
+#define ZEPHYR_INCLUDE_NET_NET_CONTEXT_H_
 
 /**
  * @brief Application network context
@@ -314,8 +314,9 @@ enum net_context_state net_context_get_state(struct net_context *context)
 {
 	NET_ASSERT(context);
 
-	return (context->flags >> NET_CONTEXT_STATE_SHIFT) &
-		NET_CONTEXT_STATE_MASK;
+	return (enum net_context_state)
+		((context->flags >> NET_CONTEXT_STATE_SHIFT) &
+		NET_CONTEXT_STATE_MASK);
 }
 
 /**
@@ -933,4 +934,4 @@ static inline void net_context_setup_pools(struct net_context *context,
  * @}
  */
 
-#endif /* __NET_CONTEXT_H */
+#endif /* ZEPHYR_INCLUDE_NET_NET_CONTEXT_H_ */

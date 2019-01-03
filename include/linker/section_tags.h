@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _section_tags__h_
-#define _section_tags__h_
+#ifndef ZEPHYR_INCLUDE_LINKER_SECTION_TAGS_H_
+#define ZEPHYR_INCLUDE_LINKER_SECTION_TAGS_H_
 
 #include <toolchain.h>
 
@@ -25,6 +25,10 @@
 #define __ccm_noinit_section _GENERIC_SECTION(_CCM_NOINIT_SECTION_NAME)
 #endif /* CONFIG_ARM */
 
+#if defined(CONFIG_NOCACHE_MEMORY)
+#define __nocache __in_section_unique(_NOCACHE_SECTION_NAME)
+#endif /* CONFIG_NOCACHE_MEMORY */
+
 #endif /* !_ASMLANGUAGE */
 
-#endif /* _section_tags__h_ */
+#endif /* ZEPHYR_INCLUDE_LINKER_SECTION_TAGS_H_ */

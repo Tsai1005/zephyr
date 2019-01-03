@@ -84,7 +84,6 @@
 #include <string.h>
 #include <misc/__assert.h>
 
-#include "board.h"
 #include <toolchain.h>
 #include <linker/sections.h>
 #include <drivers/loapic.h> /* public API declarations */
@@ -432,7 +431,7 @@ static int loapic_suspend(struct device *port)
 
 	ARG_UNUSED(port);
 
-	memset(loapic_suspend_buf, 0, (LOPIC_SUSPEND_BITS_REQD >> 3));
+	(void)memset(loapic_suspend_buf, 0, (LOPIC_SUSPEND_BITS_REQD >> 3));
 
 	for (loapic_irq = 0; loapic_irq < LOAPIC_IRQ_COUNT; loapic_irq++) {
 

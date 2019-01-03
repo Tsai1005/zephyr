@@ -8,62 +8,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_UDP)
-#define SYS_LOG_DOMAIN "net/udp"
-#define NET_LOG_ENABLED 1
-#endif
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_udp, CONFIG_NET_UDP_LOG_LEVEL);
 
 #include "net_private.h"
 #include "udp_internal.h"
 
 #define PKT_WAIT_TIME K_SECONDS(1)
 
-struct net_pkt *net_udp_append_raw(struct net_pkt *pkt,
-				   u16_t src_port,
-				   u16_t dst_port)
-{
-	struct net_buf *frag;
-	u16_t offset;
-	bool ret;
-
-	ret = net_pkt_append_all(pkt, sizeof(src_port), (u8_t *)&src_port,
-				 PKT_WAIT_TIME);
-	if (!ret) {
-		goto out;
-	}
-
-	ret = net_pkt_append_all(pkt, sizeof(dst_port), (u8_t *)&dst_port,
-				 PKT_WAIT_TIME);
-	if (!ret) {
-		goto out;
-	}
-
-	ret = net_pkt_append_be16_timeout(pkt, net_pkt_get_len(pkt) -
-					  net_pkt_ip_hdr_len(pkt) -
-					  net_pkt_ipv6_ext_len(pkt),
-					  PKT_WAIT_TIME);
-	if (!ret) {
-		goto out;
-	}
-
-	frag = net_frag_get_pos(pkt, net_pkt_ip_hdr_len(pkt) +
-				net_pkt_ipv6_ext_len(pkt) +
-				sizeof(struct net_udp_hdr),
-				&offset);
-	if (frag) {
-		net_pkt_set_appdata(pkt, frag->data + offset);
-	}
-
-	return pkt;
-
-out:
-	return NULL;
-}
-
-struct net_pkt *net_udp_insert_raw(struct net_pkt *pkt,
-				   u16_t offset,
-				   u16_t src_port,
-				   u16_t dst_port)
+struct net_pkt *net_udp_insert(struct net_pkt *pkt,
+			       u16_t offset,
+			       u16_t src_port,
+			       u16_t dst_port)
 {
 	struct net_buf *frag, *prev, *udp;
 	u16_t pos;
@@ -140,13 +96,13 @@ fail:
 struct net_buf *net_udp_set_chksum(struct net_pkt *pkt, struct net_buf *frag)
 {
 	struct net_udp_hdr *hdr;
-	u16_t chksum = 0;
+	u16_t chksum = 0U;
 	u16_t pos;
 
 	hdr = net_pkt_udp_data(pkt);
 	if (net_udp_header_fits(pkt, hdr)) {
 		hdr->chksum = 0;
-		hdr->chksum = ~net_calc_chksum_udp(pkt);
+		hdr->chksum = net_calc_chksum_udp(pkt);
 
 		return frag;
 	}
@@ -159,7 +115,7 @@ struct net_buf *net_udp_set_chksum(struct net_pkt *pkt, struct net_buf *frag)
 			     &pos, sizeof(chksum), (u8_t *)&chksum,
 			     PKT_WAIT_TIME);
 
-	chksum = ~net_calc_chksum_udp(pkt);
+	chksum = net_calc_chksum_udp(pkt);
 
 	frag = net_pkt_write(pkt, frag, pos - 2, &pos, sizeof(chksum),
 			     (u8_t *)&chksum, PKT_WAIT_TIME);
@@ -249,29 +205,6 @@ struct net_udp_hdr *net_udp_set_hdr(struct net_pkt *pkt,
 	return hdr;
 }
 
-struct net_pkt *net_udp_append(struct net_context *context,
-			       struct net_pkt *pkt,
-			       u16_t port)
-{
-	/* Append writes using *_be16() so it swap the port here */
-	return net_udp_append_raw(pkt,
-				  net_sin((struct sockaddr *)
-					  &context->local)->sin_port,
-				  port);
-}
-
-struct net_pkt *net_udp_insert(struct net_context *context,
-			       struct net_pkt *pkt,
-			       u16_t offset,
-			       u16_t port)
-{
-	return net_udp_insert_raw(pkt,
-				  offset,
-				  net_sin((struct sockaddr *)
-					  &context->local)->sin_port,
-				  port);
-}
-
 int net_udp_register(const struct sockaddr *remote_addr,
 				   const struct sockaddr *local_addr,
 				   u16_t remote_port,
@@ -288,8 +221,4 @@ int net_udp_register(const struct sockaddr *remote_addr,
 int net_udp_unregister(struct net_conn_handle *handle)
 {
 	return net_conn_unregister(handle);
-}
-
-void net_udp_init(void)
-{
 }

@@ -21,12 +21,12 @@ osMutexId osMutexCreate(const osMutexDef_t *mutex_def)
 		return NULL;
 	}
 
-	if (_is_in_isr()) {
+	if (k_is_in_isr()) {
 		return NULL;
 	}
 
 	if (k_mem_slab_alloc(&cmsis_mutex_slab, (void **)&mutex, 100) == 0) {
-		memset(mutex, 0, sizeof(struct k_mutex));
+		(void)memset(mutex, 0, sizeof(struct k_mutex));
 	} else {
 		return NULL;
 	}
@@ -48,7 +48,7 @@ osStatus osMutexWait(osMutexId mutex_id, uint32_t timeout)
 		return osErrorParameter;
 	}
 
-	if (_is_in_isr()) {
+	if (k_is_in_isr()) {
 		return osErrorISR;
 	}
 
@@ -80,12 +80,12 @@ osStatus osMutexRelease(osMutexId mutex_id)
 		return osErrorParameter;
 	}
 
-	if (_is_in_isr()) {
+	if (k_is_in_isr()) {
 		return osErrorISR;
 	}
 
-	/* The mutex was not obtained before */
-	if (mutex->lock_count == 0) {
+	/* Mutex was not obtained before or was not owned by current thread */
+	if ((mutex->lock_count == 0) || (mutex->owner != _current)) {
 		return osErrorResource;
 	}
 
@@ -105,7 +105,7 @@ osStatus osMutexDelete(osMutexId mutex_id)
 		return osErrorParameter;
 	}
 
-	if (_is_in_isr()) {
+	if (k_is_in_isr()) {
 		return osErrorISR;
 	}
 

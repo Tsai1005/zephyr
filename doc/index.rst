@@ -9,7 +9,7 @@ Zephyr Project Documentation
    Welcome to the Zephyr Project's documentation version |version|!
 
    Documentation for the development branch of Zephyr can be found at
-   http://docs.zephyrproject.org/
+   https://docs.zephyrproject.org/
 
 .. only:: (development or daily)
 
@@ -17,10 +17,11 @@ Zephyr Project Documentation
    master tree under development (version |version|).
 
    Documentation for tagged released versions of Zephyr can be found at
-   ``http://docs.zephyrproject.org/<version>``. The following documentation
+   ``https://docs.zephyrproject.org/<version>``. The following documentation
    versions are available:
 
-   `Zephyr 1.9.2`_ | `Zephyr 1.10.0`_ | `Zephyr 1.11.0`_ | `Zephyr 1.12.0`_
+   `Zephyr 1.9.2`_ | `Zephyr 1.10.0`_ | `Zephyr 1.11.0`_ |
+   `Zephyr 1.12.0`_ | `Zephyr 1.13.0`_
 
 For information about the changes and additions for releases, please
 consult the published :ref:`zephyr_release_notes` documentation.
@@ -49,13 +50,13 @@ Source code for the Zephyr Project is maintained in the Zephyr Project's
 
    introduction/introducing_zephyr.rst
    getting_started/getting_started.rst
-   contribute/contribute.rst
-   kernel/kernel.rst
-   security/security.rst
    application/index.rst
    boards/boards.rst
+   kernel/kernel.rst
    devices/index.rst
    subsystems/subsystems.rst
+   contribute/contribute.rst
+   security/security.rst
 
 .. only:: html
 
@@ -66,7 +67,8 @@ Source code for the Zephyr Project is maintained in the Zephyr Project's
 
 * :ref:`genindex`
 
-.. _Zephyr 1.12.0: http://docs.zephyrproject.org/1.12.0/
-.. _Zephyr 1.11.0: http://docs.zephyrproject.org/1.11.0/
-.. _Zephyr 1.10.0: http://docs.zephyrproject.org/1.10.0/
-.. _Zephyr 1.9.2: http://docs.zephyrproject.org/1.9.0/
+.. _Zephyr 1.13.0: https://docs.zephyrproject.org/1.13.0/
+.. _Zephyr 1.12.0: https://docs.zephyrproject.org/1.12.0/
+.. _Zephyr 1.11.0: https://docs.zephyrproject.org/1.11.0/
+.. _Zephyr 1.10.0: https://docs.zephyrproject.org/1.10.0/
+.. _Zephyr 1.9.2: https://docs.zephyrproject.org/1.9.0/

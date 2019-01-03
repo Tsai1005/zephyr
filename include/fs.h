@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _FS_H_
-#define _FS_H_
+#ifndef ZEPHYR_INCLUDE_FS_H_
+#define ZEPHYR_INCLUDE_FS_H_
 
 #ifdef CONFIG_ARCH_POSIX
 #ifndef __ssize_t_defined
@@ -47,8 +47,8 @@ enum fs_type {
 };
 
 /**
- * @brief File System
- * @defgroup file_system File System
+ * @brief File System and Storage
+ * @defgroup file_system_storage File System and Storage
  * @{
  * @}
  */
@@ -56,7 +56,7 @@ enum fs_type {
 /**
  * @brief File System Data Structures
  * @defgroup data_structures File System Data Structures
- * @ingroup file_system
+ * @ingroup file_system_storage
  * @{
  */
 
@@ -185,7 +185,7 @@ struct fs_file_system_t {
 /**
  * @brief File System APIs
  * @defgroup file_system_api File System APIs
- * @ingroup file_system
+ * @ingroup file_system_storage
  * @{
  */
 
@@ -494,4 +494,4 @@ int fs_unregister(enum fs_type type, struct fs_file_system_t *fs);
 }
 #endif
 
-#endif /* _FS_H_ */
+#endif /* ZEPHYR_INCLUDE_FS_H_ */

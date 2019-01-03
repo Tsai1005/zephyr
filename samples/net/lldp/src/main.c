@@ -4,11 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if 1
-#define SYS_LOG_DOMAIN "lldp-app"
-#define NET_SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
-#define NET_LOG_ENABLED 1
-#endif
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_lldp_sample, LOG_LEVEL_DBG);
 
 #include <zephyr.h>
 
@@ -61,42 +58,43 @@ static int setup_iface(struct net_if *iface, const char *ipv6_addr,
 
 	ret = net_eth_vlan_enable(iface, vlan_tag);
 	if (ret < 0) {
-		NET_ERR("Cannot enable VLAN for tag %d (%d)", vlan_tag, ret);
+		LOG_ERR("Cannot enable VLAN for tag %d (%d)", vlan_tag, ret);
 	}
 
 	if (net_addr_pton(AF_INET6, ipv6_addr, &addr6)) {
-		NET_ERR("Invalid address: %s", ipv6_addr);
+		LOG_ERR("Invalid address: %s", ipv6_addr);
 		return -EINVAL;
 	}
 
 	ifaddr = net_if_ipv6_addr_add(iface, &addr6, NET_ADDR_MANUAL, 0);
 	if (!ifaddr) {
-		NET_ERR("Cannot add %s to interface %p", ipv6_addr, iface);
+		LOG_ERR("Cannot add %s to interface %p", ipv6_addr, iface);
 		return -EINVAL;
 	}
 
 	if (net_addr_pton(AF_INET, ipv4_addr, &addr4)) {
-		NET_ERR("Invalid address: %s", ipv6_addr);
+		LOG_ERR("Invalid address: %s", ipv6_addr);
 		return -EINVAL;
 	}
 
 	ifaddr = net_if_ipv4_addr_add(iface, &addr4, NET_ADDR_MANUAL, 0);
 	if (!ifaddr) {
-		NET_ERR("Cannot add %s to interface %p", ipv4_addr, iface);
+		LOG_ERR("Cannot add %s to interface %p", ipv4_addr, iface);
 		return -EINVAL;
 	}
 
-	NET_DBG("Interface %p VLAN tag %d setup done.", iface, vlan_tag);
+	LOG_DBG("Interface %p VLAN tag %d setup done.", iface, vlan_tag);
 
 	return 0;
 }
 
+static struct ud ud;
+
 static int init_vlan(void)
 {
-	struct ud ud;
 	int ret;
 
-	memset(&ud, 0, sizeof(ud));
+	(void)memset(&ud, 0, sizeof(ud));
 
 	net_if_foreach(iface_cb, &ud);
 
@@ -123,11 +121,64 @@ static int init_vlan(void)
 	return 0;
 }
 
+static enum net_verdict parse_lldp(struct net_if *iface, struct net_pkt *pkt)
+{
+	size_t len = net_pkt_get_len(pkt);
+	struct net_buf *frag = pkt->frags;
+	u16_t pos = 0U;
+
+	LOG_DBG("iface %p Parsing LLDP, len %u", iface, len);
+
+	while (frag) {
+		u16_t type_length;
+
+		frag = net_frag_read_be16(frag, pos, &pos, &type_length);
+		if (!frag) {
+			if (type_length == 0) {
+				LOG_DBG("End LLDP DU TLV");
+				break;
+			}
+
+			LOG_ERR("Parsing ended, pos %u", pos);
+			break;
+		}
+
+		u16_t length = type_length & 0x1FF;
+		u8_t type = (u8_t)(type_length >> 9);
+
+		/* Skip for now data */
+		frag = net_frag_skip(frag, pos, &pos, length);
+
+		switch (type) {
+		case LLDP_TLV_CHASSIS_ID:
+			LOG_DBG("Chassis ID");
+			break;
+		case LLDP_TLV_PORT_ID:
+			LOG_DBG("Port ID");
+			break;
+		case LLDP_TLV_TTL:
+			LOG_DBG("TTL");
+			break;
+		default:
+			LOG_DBG("TLV Not parsed");
+			break;
+		}
+
+		LOG_DBG("type_length %u type %u length %u pos %u",
+			type_length, type, length, pos);
+	}
+
+	/* Let stack to free the packet */
+	return NET_DROP;
+}
+
 static int init_app(void)
 {
 	if (init_vlan() < 0) {
-		NET_ERR("Cannot setup VLAN");
+		LOG_ERR("Cannot setup VLAN");
 	}
+
+	net_lldp_register_callback(ud.first, parse_lldp);
 
 	return 0;
 }

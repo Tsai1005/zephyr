@@ -7,11 +7,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if 1
-#define SYS_LOG_DOMAIN "echo-server"
-#define NET_SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
-#define NET_LOG_ENABLED 1
-#endif
+#include <logging/log.h>
+LOG_MODULE_DECLARE(net_echo_server_sample, LOG_LEVEL_DBG);
 
 #include <zephyr.h>
 #include <errno.h>
@@ -134,7 +131,7 @@ static void process_udp4(void)
 	int ret;
 	struct sockaddr_in addr4;
 
-	memset(&addr4, 0, sizeof(addr4));
+	(void)memset(&addr4, 0, sizeof(addr4));
 	addr4.sin_family = AF_INET;
 	addr4.sin_port = htons(MY_PORT);
 
@@ -158,7 +155,7 @@ static void process_udp6(void)
 	int ret;
 	struct sockaddr_in6 addr6;
 
-	memset(&addr6, 0, sizeof(addr6));
+	(void)memset(&addr6, 0, sizeof(addr6));
 	addr6.sin6_family = AF_INET6;
 	addr6.sin6_port = htons(MY_PORT);
 

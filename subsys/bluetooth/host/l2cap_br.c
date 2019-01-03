@@ -19,6 +19,7 @@
 #include <bluetooth/hci_driver.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_L2CAP)
+#define LOG_MODULE_NAME bt_l2cap_br
 #include "common/log.h"
 
 #include "hci_core.h"
@@ -376,14 +377,14 @@ static int l2cap_br_info_rsp(struct bt_l2cap_br *l2cap, u8_t ident,
 	}
 done:
 	atomic_set_bit(l2cap->chan.flags, L2CAP_FLAG_SIG_INFO_DONE);
-	l2cap->info_ident = 0;
+	l2cap->info_ident = 0U;
 	return err;
 }
 
 static u8_t get_fixed_channels_mask(void)
 {
 	struct bt_l2cap_fixed_chan *fchan;
-	u8_t mask = 0;
+	u8_t mask = 0U;
 
 	/* this needs to be enhanced if AMP Test Manager support is added */
 	SYS_SLIST_FOR_EACH_CONTAINER(&br_fixed_channels, fchan, node) {
@@ -430,7 +431,7 @@ static int l2cap_br_info_req(struct bt_l2cap_br *l2cap, u8_t ident,
 		rsp->type = sys_cpu_to_le16(BT_L2CAP_INFO_FIXED_CHAN);
 		rsp->result = sys_cpu_to_le16(BT_L2CAP_INFO_SUCCESS);
 		/* fixed channel mask protocol data is 8 octets wide */
-		memset(net_buf_add(rsp_buf, 8), 0, 8);
+		(void)memset(net_buf_add(rsp_buf, 8), 0, 8);
 		rsp->data[0] = get_fixed_channels_mask();
 
 		hdr_info->len = sys_cpu_to_le16(sizeof(*rsp) + 8);
@@ -519,7 +520,7 @@ static void l2cap_br_conf(struct bt_l2cap_chan *chan)
 	hdr->code = BT_L2CAP_CONF_REQ;
 	hdr->ident = l2cap_br_get_ident();
 	conf = net_buf_add(buf, sizeof(*conf));
-	memset(conf, 0, sizeof(*conf));
+	(void)memset(conf, 0, sizeof(*conf));
 
 	conf->dcid = sys_cpu_to_le16(BR_CHAN(chan)->tx.cid);
 	/*
@@ -1009,7 +1010,7 @@ send_rsp:
 	hdr->code = BT_L2CAP_CONF_RSP;
 	hdr->ident = ident;
 	rsp = net_buf_add(buf, sizeof(*rsp));
-	memset(rsp, 0, sizeof(*rsp));
+	(void)memset(rsp, 0, sizeof(*rsp));
 
 	rsp->result = sys_cpu_to_le16(result);
 	rsp->scid = sys_cpu_to_le16(BR_CHAN(chan)->tx.cid);
@@ -1343,7 +1344,7 @@ int bt_l2cap_br_chan_send(struct bt_l2cap_chan *chan, struct net_buf *buf)
 	return buf->len;
 }
 
-static void l2cap_br_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
+static int l2cap_br_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
 {
 	struct bt_l2cap_br *l2cap = CONTAINER_OF(chan, struct bt_l2cap_br, chan);
 	struct bt_l2cap_sig_hdr *hdr = (void *)buf->data;
@@ -1351,7 +1352,7 @@ static void l2cap_br_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
 
 	if (buf->len < sizeof(*hdr)) {
 		BT_ERR("Too small L2CAP signaling PDU");
-		return;
+		return 0;
 	}
 
 	len = sys_le16_to_cpu(hdr->len);
@@ -1362,12 +1363,12 @@ static void l2cap_br_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
 
 	if (buf->len != len) {
 		BT_ERR("L2CAP length mismatch (%u != %u)", buf->len, len);
-		return;
+		return 0;
 	}
 
 	if (!hdr->ident) {
 		BT_ERR("Invalid ident value in L2CAP PDU");
-		return;
+		return 0;
 	}
 
 	switch (hdr->code) {
@@ -1401,6 +1402,8 @@ static void l2cap_br_recv(struct bt_l2cap_chan *chan, struct net_buf *buf)
 				     BT_L2CAP_REJ_NOT_UNDERSTOOD, NULL, 0);
 		break;
 	}
+
+	return 0;
 }
 
 static void l2cap_br_conn_pend(struct bt_l2cap_chan *chan, u8_t status)

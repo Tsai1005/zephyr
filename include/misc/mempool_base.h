@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef SYS_MEMPOOL_BASE_H
-#define SYS_MEMPOOL_BASE_H
+#ifndef ZEPHYR_INCLUDE_MISC_MEMPOOL_BASE_H_
+#define ZEPHYR_INCLUDE_MISC_MEMPOOL_BASE_H_
 
 #include <zephyr/types.h>
 #include <stddef.h>
@@ -38,7 +38,8 @@ struct sys_mem_pool_base {
 
 #define _ALIGN4(n) ((((n)+3)/4)*4)
 
-#define _MPOOL_HAVE_LVL(max, min, l) (((max) >> (2*(l))) >= (min) ? 1 : 0)
+#define _MPOOL_HAVE_LVL(maxsz, minsz, l) (((maxsz) >> (2*(l))) \
+					  >= (minsz) ? 1 : 0)
 
 #define __MPOOL_LVLS(maxsz, minsz)		\
 	(_MPOOL_HAVE_LVL((maxsz), (minsz), 0) +	\
@@ -60,8 +61,9 @@ struct sys_mem_pool_base {
 
 #define _MPOOL_MINBLK sizeof(sys_dnode_t)
 
-#define _MPOOL_LVLS(max, min)		\
-	__MPOOL_LVLS((max), (min) >= _MPOOL_MINBLK ? (min) : _MPOOL_MINBLK)
+#define _MPOOL_LVLS(maxsz, minsz)		\
+	__MPOOL_LVLS((maxsz), (minsz) >= _MPOOL_MINBLK ? (minsz) : \
+		     _MPOOL_MINBLK)
 
 /* Rounds the needed bits up to integer multiples of u32_t */
 #define _MPOOL_LBIT_WORDS_UNCLAMPED(n_max, l) \
@@ -107,4 +109,4 @@ int _sys_mem_pool_block_alloc(struct sys_mem_pool_base *p, size_t size,
 void _sys_mem_pool_block_free(struct sys_mem_pool_base *p, u32_t level,
 			      u32_t block);
 
-#endif /* SYS_MEMPOOL_BASE_H */
+#endif /* ZEPHYR_INCLUDE_MISC_MEMPOOL_BASE_H_ */

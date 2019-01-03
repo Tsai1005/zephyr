@@ -47,7 +47,7 @@ static int _m16src_start(struct device *dev, clock_control_subsys_t sub_system)
 		return -EAGAIN;
 	}
 
-	m16src_grd = 1;
+	m16src_grd = 1U;
 
 	irq_unlock(imask);
 
@@ -87,7 +87,7 @@ static int _m16src_start(struct device *dev, clock_control_subsys_t sub_system)
 	}
 
 	/* release resource guard */
-	m16src_grd = 0;
+	m16src_grd = 0U;
 
 hf_already_started:
 	/* rollover should not happen as start and stop shall be
@@ -130,7 +130,7 @@ static int _m16src_stop(struct device *dev, clock_control_subsys_t sub_system)
 		return -EAGAIN;
 	}
 
-	m16src_grd = 1;
+	m16src_grd = 1U;
 
 	irq_unlock(imask);
 
@@ -139,7 +139,7 @@ static int _m16src_stop(struct device *dev, clock_control_subsys_t sub_system)
 	nrf_clock_task_trigger(NRF_CLOCK_TASK_HFCLKSTOP);
 
 	/* release resource guard */
-	m16src_grd = 0;
+	m16src_grd = 0U;
 
 	return 0;
 }
@@ -172,7 +172,7 @@ static int _k32src_start(struct device *dev, clock_control_subsys_t sub_system)
 		goto lf_already_started;
 	}
 
-	k32src_initialized = 1;
+	k32src_initialized = 1U;
 
 	irq_unlock(imask);
 
@@ -212,6 +212,7 @@ static int _k32src_start(struct device *dev, clock_control_subsys_t sub_system)
 	/* NOTE: LFCLK will initially start running from the LFRC if LFXO is
 	 *       selected.
 	 */
+	nrf_clock_int_enable(NRF_CLOCK_INT_LF_STARTED_MASK);
 	nrf_clock_task_trigger(NRF_CLOCK_TASK_LFCLKSTART);
 #endif /* !CONFIG_CLOCK_CONTROL_NRF5_K32SRC_BLOCKING */
 
@@ -232,6 +233,12 @@ static int _k32src_start(struct device *dev, clock_control_subsys_t sub_system)
 		/* Enable DONE and CTTO IRQs */
 		nrf_clock_int_enable(NRF_CLOCK_INT_DONE_MASK |
 				     NRF_CLOCK_INT_CTTO_MASK);
+
+		/* If non-blocking LF clock start, then start HF clock in ISR */
+		if ((NRF_CLOCK->LFCLKSTAT & CLOCK_LFCLKSTAT_STATE_Msk) == 0) {
+			nrf_clock_int_enable(NRF_CLOCK_INT_LF_STARTED_MASK);
+			goto lf_already_started;
+		}
 
 		/* Start HF clock, if already started then explicitly
 		 * assert IRQ.
@@ -261,15 +268,15 @@ lf_already_started:
 #if defined(CONFIG_USB) && defined(CONFIG_SOC_NRF52840)
 static inline void power_event_cb(nrf_power_event_t event)
 {
-	extern void nrf5_usbd_power_event_callback(nrf_power_event_t event);
+	extern void usb_dc_nrfx_power_event_callback(nrf_power_event_t event);
 
-	nrf5_usbd_power_event_callback(event);
+	usb_dc_nrfx_power_event_callback(event);
 }
 #endif
 
 static void _power_clock_isr(void *arg)
 {
-	u8_t pof, hf_intenset, hf_stat, hf, lf, done, ctto;
+	u8_t pof, hf_intenset, hf, lf_intenset, lf, done, ctto;
 #if defined(CONFIG_USB) && defined(CONFIG_SOC_NRF52840)
 	bool usb_detected, usb_pwr_rdy, usb_removed;
 #endif
@@ -277,11 +284,12 @@ static void _power_clock_isr(void *arg)
 
 	pof = (NRF_POWER->EVENTS_POFWARN != 0);
 
-	hf_intenset =
-	    ((NRF_CLOCK->INTENSET & CLOCK_INTENSET_HFCLKSTARTED_Msk) != 0);
-	hf_stat = ((NRF_CLOCK->HFCLKSTAT & CLOCK_HFCLKSTAT_STATE_Msk) != 0);
+	hf_intenset = ((NRF_CLOCK->INTENSET &
+		       CLOCK_INTENSET_HFCLKSTARTED_Msk) != 0);
 	hf = (NRF_CLOCK->EVENTS_HFCLKSTARTED != 0);
 
+	lf_intenset = ((NRF_CLOCK->INTENSET &
+		       CLOCK_INTENSET_LFCLKSTARTED_Msk) != 0);
 	lf = (NRF_CLOCK->EVENTS_LFCLKSTARTED != 0);
 
 	done = (NRF_CLOCK->EVENTS_DONE != 0);
@@ -306,11 +314,23 @@ static void _power_clock_isr(void *arg)
 		NRF_CLOCK->EVENTS_HFCLKSTARTED = 0;
 	}
 
-	if (hf_intenset && hf_stat) {
+	if (hf_intenset && (hf || ((NRF_CLOCK->HFCLKSTAT &
+				    (CLOCK_HFCLKSTAT_STATE_Msk |
+				     CLOCK_HFCLKSTAT_SRC_Msk)) ==
+				   (CLOCK_HFCLKSTAT_STATE_Msk |
+				    CLOCK_HFCLKSTAT_SRC_Msk)))){
 		/* INTENSET is used as state flag to start calibration,
 		 * hence clear it here.
 		 */
 		NRF_CLOCK->INTENCLR = CLOCK_INTENCLR_HFCLKSTARTED_Msk;
+
+#if defined(CONFIG_SOC_SERIES_NRF52X)
+		/* NOTE: Errata [192] CLOCK: LFRC frequency offset after
+		 * calibration.
+		 * Calibration start, workaround.
+		 */
+		*(volatile u32_t *)0x40000C34 = 0x00000002;
+#endif /* CONFIG_SOC_SERIES_NRF52X */
 
 		/* Start Calibration */
 		NRF_CLOCK->TASKS_CAL = 1;
@@ -319,17 +339,36 @@ static void _power_clock_isr(void *arg)
 	if (lf) {
 		NRF_CLOCK->EVENTS_LFCLKSTARTED = 0;
 
-		__ASSERT_NO_MSG(0);
+		if (lf_intenset) {
+			/* INTENSET is used as state flag to start calibration,
+			 * hence clear it here.
+			 */
+			NRF_CLOCK->INTENCLR = CLOCK_INTENCLR_LFCLKSTARTED_Msk;
+
+			/* Start HF Clock if LF RC is used. */
+			if ((NRF_CLOCK->LFCLKSRCCOPY & CLOCK_LFCLKSRCCOPY_SRC_Msk) ==
+			    CLOCK_LFCLKSRCCOPY_SRC_RC) {
+				ctto = 1U;
+			}
+		}
 	}
 
 	if (done) {
 		int err;
 
+#if defined(CONFIG_SOC_SERIES_NRF52X)
+		/* NOTE: Errata [192] CLOCK: LFRC frequency offset after
+		 * calibration.
+		 * Calibration done, workaround.
+		 */
+		*(volatile u32_t *)0x40000C34 = 0x00000000;
+#endif /* CONFIG_SOC_SERIES_NRF52X */
+
 		NRF_CLOCK->EVENTS_DONE = 0;
 
 		/* Calibration done, stop 16M Xtal. */
 		err = _m16src_stop(dev, NULL);
-		__ASSERT_NO_MSG(!err);
+		__ASSERT_NO_MSG(!err || err == -EBUSY);
 
 		/* Start timer for next calibration. */
 		NRF_CLOCK->TASKS_CTSTART = 1;
@@ -414,9 +453,11 @@ DEVICE_AND_API_INIT(clock_nrf5_k32src,
 		    &_k32src_clock_control_api);
 
 #if defined(CONFIG_USB) && defined(CONFIG_SOC_NRF52840)
-static void power_int_enable(bool enable)
+
+void nrf5_power_usb_power_int_enable(bool enable)
 {
 	u32_t mask;
+
 
 	mask = NRF_POWER_INT_USBDETECTED_MASK |
 	       NRF_POWER_INT_USBREMOVED_MASK |
@@ -424,60 +465,10 @@ static void power_int_enable(bool enable)
 
 	if (enable) {
 		nrf_power_int_enable(mask);
+		irq_enable(POWER_CLOCK_IRQn);
 	} else {
 		nrf_power_int_disable(mask);
 	}
 }
 
-static bool usbregstatus_vbusdet_get(void)
-{
-	return nrf_power_usbregstatus_vbusdet_get();
-}
-
-static bool usbregstatus_outrdy_get(void)
-{
-	return nrf_power_usbregstatus_outrdy_get();
-}
-
-static const struct usbd_power_nrf5_api usbd_power_api = {
-	.usb_power_int_enable = power_int_enable,
-	.vbusdet_get = usbregstatus_vbusdet_get,
-	.outrdy_get = usbregstatus_outrdy_get,
-};
-
-static int usbd_power_init(struct device *dev)
-{
-	irq_enable(POWER_CLOCK_IRQn);
-
-	return 0;
-}
-
-void nrf5_power_usb_power_int_enable(struct device *dev, bool enable)
-{
-	const struct usbd_power_nrf5_api *api = dev->driver_api;
-
-	api->usb_power_int_enable(enable);
-}
-
-bool nrf5_power_clock_usb_vbusdet(struct device *dev)
-{
-	const struct usbd_power_nrf5_api *api = dev->driver_api;
-
-	return api->vbusdet_get();
-}
-
-bool nrf5_power_clock_usb_outrdy(struct device *dev)
-{
-	const struct usbd_power_nrf5_api *api = dev->driver_api;
-
-	return api->outrdy_get();
-}
-
-DEVICE_AND_API_INIT(usbd_power_nrf5,
-		    CONFIG_USBD_NRF5_NAME,
-		    usbd_power_init,
-		    NULL, NULL,
-		    PRE_KERNEL_2,
-		    CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
-		    &usbd_power_api);
 #endif

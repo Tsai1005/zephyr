@@ -13,8 +13,8 @@
  * (include/arch/syscall.h)
  */
 
-#ifndef _X86_SYSCALL__H_
-#define _X86_SYSCALL__H_
+#ifndef ZEPHYR_INCLUDE_ARCH_X86_SYSCALL_H_
+#define ZEPHYR_INCLUDE_ARCH_X86_SYSCALL_H_
 
 #define USER_CODE_SEG	0x2b /* at dpl=3 */
 #define USER_DATA_SEG	0x33 /* at dpl=3 */
@@ -23,6 +23,7 @@
 #ifndef _ASMLANGUAGE
 
 #include <zephyr/types.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -151,7 +152,7 @@ static inline u32_t _arch_syscall_invoke0(u32_t call_id)
 	return ret;
 }
 
-static inline int _arch_is_user_context(void)
+static inline bool _arch_is_user_context(void)
 {
 	int cs;
 
@@ -168,4 +169,4 @@ static inline int _arch_is_user_context(void)
 
 #endif /* _ASMLANGUAGE */
 #endif /* CONFIG_USERSPACE */
-#endif /* _X86_SYSCALL__H_ */
+#endif /* ZEPHYR_INCLUDE_ARCH_X86_SYSCALL_H_ */

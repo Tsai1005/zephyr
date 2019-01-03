@@ -8,10 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_LLDP)
-#define SYS_LOG_DOMAIN "net/lldp"
-#define NET_LOG_ENABLED 1
-#endif
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_lldp, CONFIG_NET_LLDP_LOG_LEVEL);
 
 #include <errno.h>
 #include <stdlib.h>
@@ -102,9 +100,7 @@ static int lldp_send(struct ethernet_lldp *lldp)
 		goto out;
 	}
 
-	pkt = net_pkt_get_reserve_tx(net_if_get_ll_reserve(lldp->iface,
-							   NULL),
-				     BUF_ALLOC_TIMEOUT);
+	pkt = net_pkt_get_reserve_tx(BUF_ALLOC_TIMEOUT);
 	if (!pkt) {
 		ret = -ENOMEM;
 		goto out;
@@ -128,10 +124,10 @@ static int lldp_send(struct ethernet_lldp *lldp)
 		goto out;
 	}
 
-	net_pkt_ll_src(pkt)->addr = net_if_get_link_addr(lldp->iface)->addr;
-	net_pkt_ll_src(pkt)->len = sizeof(struct net_eth_addr);
-	net_pkt_ll_dst(pkt)->addr = (u8_t *)lldp_multicast_eth_addr.addr;
-	net_pkt_ll_dst(pkt)->len = sizeof(struct net_eth_addr);
+	net_pkt_lladdr_src(pkt)->addr = net_if_get_link_addr(lldp->iface)->addr;
+	net_pkt_lladdr_src(pkt)->len = sizeof(struct net_eth_addr);
+	net_pkt_lladdr_dst(pkt)->addr = (u8_t *)lldp_multicast_eth_addr.addr;
+	net_pkt_lladdr_dst(pkt)->len = sizeof(struct net_eth_addr);
 
 	hdr = NET_ETH_HDR(pkt);
 	hdr->type = htons(NET_ETH_PTYPE_LLDP);
@@ -245,6 +241,54 @@ static int lldp_start(struct net_if *iface, u32_t mgmt_event)
 		NET_DBG("Starting timer for iface %p", iface);
 		lldp_start_timer(ctx, iface, slot);
 	}
+
+	return 0;
+}
+
+enum net_verdict net_lldp_recv(struct net_if *iface, struct net_pkt *pkt)
+{
+	struct ethernet_context *ctx;
+	net_lldp_recv_cb_t cb;
+	int ret;
+
+	ret = lldp_check_iface(iface);
+	if (ret < 0) {
+		return NET_DROP;
+	}
+
+	ctx = net_if_l2_data(iface);
+
+	ret = lldp_find(ctx, iface);
+	if (ret < 0) {
+		return NET_DROP;
+	}
+
+	cb = ctx->lldp[ret].cb;
+	if (cb) {
+		return cb(iface, pkt);
+	}
+
+	return NET_DROP;
+}
+
+int net_lldp_register_callback(struct net_if *iface, net_lldp_recv_cb_t cb)
+{
+	struct ethernet_context *ctx;
+	int ret;
+
+	ret = lldp_check_iface(iface);
+	if (ret < 0) {
+		return ret;
+	}
+
+	ctx = net_if_l2_data(iface);
+
+	ret = lldp_find(ctx, iface);
+	if (ret < 0) {
+		return ret;
+	}
+
+	ctx->lldp[ret].cb = cb;
 
 	return 0;
 }

@@ -10,10 +10,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_CONTEXT)
-#define SYS_LOG_DOMAIN "net/ctx"
-#define NET_LOG_ENABLED 1
-#endif
+#include <logging/log.h>
+LOG_MODULE_REGISTER(net_ctx, CONFIG_NET_CONTEXT_LOG_LEVEL);
 
 #include <kernel.h>
 #include <string.h>
@@ -214,8 +212,9 @@ int net_context_get(sa_family_t family,
 		net_context_set_type(&contexts[i], type);
 		net_context_set_ip_proto(&contexts[i], ip_proto);
 
-		memset(&contexts[i].remote, 0, sizeof(struct sockaddr));
-		memset(&contexts[i].local, 0, sizeof(struct sockaddr_ptr));
+		(void)memset(&contexts[i].remote, 0, sizeof(struct sockaddr));
+		(void)memset(&contexts[i].local, 0,
+			     sizeof(struct sockaddr_ptr));
 
 #if defined(CONFIG_NET_IPV6)
 		if (family == AF_INET6) {
@@ -419,7 +418,7 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 			return -EINVAL;
 		}
 
-		if (net_is_ipv6_addr_mcast(&addr6->sin6_addr)) {
+		if (net_ipv6_is_addr_mcast(&addr6->sin6_addr)) {
 			struct net_if_mcast_addr *maddr;
 
 			maddr = net_if_ipv6_maddr_lookup(&addr6->sin6_addr,
@@ -430,8 +429,9 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 
 			ptr = &maddr->address.in6_addr;
 
-		} else if (net_is_ipv6_addr_unspecified(&addr6->sin6_addr)) {
-			iface = net_if_get_default();
+		} else if (net_ipv6_is_addr_unspecified(&addr6->sin6_addr)) {
+			iface = net_if_ipv6_select_src_iface(
+				&net_sin6(&context->remote)->sin6_addr);
 
 			ptr = (struct in6_addr *)net_ipv6_unspecified_address();
 		} else {
@@ -448,7 +448,8 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 
 		if (!iface) {
 			NET_ERR("Cannot bind to %s",
-				net_sprint_ipv6_addr(&addr6->sin6_addr));
+				log_strdup(net_sprint_ipv6_addr(
+						   &addr6->sin6_addr)));
 
 			return -EADDRNOTAVAIL;
 		}
@@ -487,8 +488,8 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 		NET_DBG("Context %p binding to %s [%s]:%d iface %p",
 			context,
 			net_proto2str(net_context_get_ip_proto(context)),
-			net_sprint_ipv6_addr(ptr), ntohs(addr6->sin6_port),
-			iface);
+			log_strdup(net_sprint_ipv6_addr(ptr)),
+			ntohs(addr6->sin6_port), iface);
 
 		return 0;
 	}
@@ -506,7 +507,7 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 			return -EINVAL;
 		}
 
-		if (net_is_ipv4_addr_mcast(&addr4->sin_addr)) {
+		if (net_ipv4_is_addr_mcast(&addr4->sin_addr)) {
 			struct net_if_mcast_addr *maddr;
 
 			maddr = net_if_ipv4_maddr_lookup(&addr4->sin_addr,
@@ -518,7 +519,8 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 			ptr = &maddr->address.in_addr;
 
 		} else if (addr4->sin_addr.s_addr == INADDR_ANY) {
-			iface = net_if_get_default();
+			iface = net_if_ipv4_select_src_iface(
+				&net_sin(&context->remote)->sin_addr);
 
 			ptr = (struct in_addr *)net_ipv4_unspecified_address();
 		} else {
@@ -533,7 +535,8 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 
 		if (!iface) {
 			NET_ERR("Cannot bind to %s",
-				net_sprint_ipv4_addr(&addr4->sin_addr));
+				log_strdup(net_sprint_ipv4_addr(
+						   &addr4->sin_addr)));
 
 			return -EADDRNOTAVAIL;
 		}
@@ -572,7 +575,7 @@ int net_context_bind(struct net_context *context, const struct sockaddr *addr,
 		NET_DBG("Context %p binding to %s %s:%d iface %p",
 			context,
 			net_proto2str(net_context_get_ip_proto(context)),
-			net_sprint_ipv4_addr(ptr),
+			log_strdup(net_sprint_ipv4_addr(ptr)),
 			ntohs(addr4->sin_port), iface);
 
 		return 0;
@@ -635,10 +638,15 @@ struct net_pkt *net_context_create_ipv4(struct net_context *context,
 		src = ((struct sockaddr_in_ptr *)&context->local)->sin_addr;
 	}
 
-	if (net_is_ipv4_addr_unspecified(src)
-	    || net_is_ipv4_addr_mcast(src)) {
+	if (net_ipv4_is_addr_unspecified(src)
+	    || net_ipv4_is_addr_mcast(src)) {
 		src = net_if_ipv4_select_src_addr(net_pkt_iface(pkt),
 						  (struct in_addr *)dst);
+		/* If src address is still unspecified, do not create pkt */
+		if (net_ipv4_is_addr_unspecified(src)) {
+			NET_DBG("DROP: src addr is unspecified");
+			return NULL;
+		}
 	}
 
 	return net_ipv4_create(pkt,
@@ -661,8 +669,8 @@ struct net_pkt *net_context_create_ipv6(struct net_context *context,
 		src = ((struct sockaddr_in6_ptr *)&context->local)->sin6_addr;
 	}
 
-	if (net_is_ipv6_addr_unspecified(src)
-	    || net_is_ipv6_addr_mcast(src)) {
+	if (net_ipv6_is_addr_unspecified(src)
+	    || net_ipv6_is_addr_mcast(src)) {
 		src = net_if_ipv6_select_src_addr(net_pkt_iface(pkt),
 						  (struct in6_addr *)dst);
 	}
@@ -692,11 +700,6 @@ int net_context_connect(struct net_context *context,
 
 	if (!net_context_is_used(context)) {
 		return -EBADF;
-	}
-
-	ret = bind_default(context);
-	if (ret) {
-		return ret;
 	}
 
 	if (addr->sa_family != net_context_get_family(context)) {
@@ -735,7 +738,7 @@ int net_context_connect(struct net_context *context,
 		}
 
 		if (net_context_get_ip_proto(context) == IPPROTO_TCP &&
-		    net_is_ipv6_addr_mcast(&addr6->sin6_addr)) {
+		    net_ipv6_is_addr_mcast(&addr6->sin6_addr)) {
 			return -EADDRNOTAVAIL;
 		}
 
@@ -745,13 +748,24 @@ int net_context_connect(struct net_context *context,
 		addr6->sin6_port = net_sin6(addr)->sin6_port;
 		addr6->sin6_family = AF_INET6;
 
-		if (!net_is_ipv6_addr_unspecified(&addr6->sin6_addr)) {
+		if (!net_ipv6_is_addr_unspecified(&addr6->sin6_addr)) {
 			context->flags |= NET_CONTEXT_REMOTE_ADDR_SET;
 		} else {
 			context->flags &= ~NET_CONTEXT_REMOTE_ADDR_SET;
 		}
 
 		rport = addr6->sin6_port;
+
+		/* The binding must be done after we have set the remote
+		 * address but before checking the local address. Otherwise
+		 * the laddr might not be set properly which would then cause
+		 * issues when doing net_tcp_connect(). This issue was seen
+		 * with socket tests and when connecting to loopback interface.
+		 */
+		ret = bind_default(context);
+		if (ret) {
+			return ret;
+		}
 
 		net_sin6_ptr(&context->local)->sin6_family = AF_INET6;
 		net_sin6(&local_addr)->sin6_family = AF_INET6;
@@ -793,6 +807,11 @@ int net_context_connect(struct net_context *context,
 		}
 
 		rport = addr4->sin_port;
+
+		ret = bind_default(context);
+		if (ret) {
+			return ret;
+		}
 
 		net_sin_ptr(&context->local)->sin_family = AF_INET;
 		net_sin(&local_addr)->sin_family = AF_INET;
@@ -889,9 +908,11 @@ static int create_udp_packet(struct net_context *context,
 			return -ENOMEM;
 		}
 
-		tmp = net_udp_insert(context, pkt,
+		tmp = net_udp_insert(pkt,
 				     net_pkt_ip_hdr_len(pkt) +
 				     net_pkt_ipv6_ext_len(pkt),
+				     net_sin((struct sockaddr *)
+					     &context->local)->sin_port,
 				     addr6->sin6_port);
 		if (!tmp) {
 			return -ENOMEM;
@@ -912,7 +933,9 @@ static int create_udp_packet(struct net_context *context,
 			return -ENOMEM;
 		}
 
-		tmp = net_udp_insert(context, pkt, net_pkt_ip_hdr_len(pkt),
+		tmp = net_udp_insert(pkt, net_pkt_ip_hdr_len(pkt),
+				     net_sin((struct sockaddr *)
+					     &context->local)->sin_port,
 				     addr4->sin_port);
 		if (!tmp) {
 			return -ENOMEM;
@@ -960,7 +983,7 @@ static int sendto(struct net_pkt *pkt,
 			return -EINVAL;
 		}
 
-		if (net_is_ipv6_addr_unspecified(&addr6->sin6_addr)) {
+		if (net_ipv6_is_addr_unspecified(&addr6->sin6_addr)) {
 			return -EDESTADDRREQ;
 		}
 	} else
@@ -1157,7 +1180,7 @@ static int recv_udp(struct net_context *context,
 		.sa_family = net_context_get_family(context),
 	};
 	struct sockaddr *laddr = NULL;
-	u16_t lport = 0;
+	u16_t lport = 0U;
 	int ret;
 
 	ARG_UNUSED(timeout);

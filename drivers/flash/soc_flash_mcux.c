@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <logging/sys_log.h>
 #include <kernel.h>
 #include <device.h>
 #include <string.h>
@@ -151,7 +150,7 @@ static int flash_mcux_init(struct device *dev)
 	return (rc == kStatus_Success) ? 0 : -EIO;
 }
 
-DEVICE_AND_API_INIT(flash_mcux, FLASH_DEV_NAME,
+DEVICE_AND_API_INIT(flash_mcux, DT_FLASH_DEV_NAME,
 			flash_mcux_init, &flash_data, NULL, POST_KERNEL,
 			CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &flash_mcux_api);
 

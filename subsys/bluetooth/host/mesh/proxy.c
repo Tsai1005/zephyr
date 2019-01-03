@@ -16,6 +16,7 @@
 #include <bluetooth/mesh.h>
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_PROXY)
+#define LOG_MODULE_NAME bt_mesh_proxy
 #include "common/log.h"
 
 #include "mesh.h"
@@ -141,11 +142,11 @@ static int filter_set(struct bt_mesh_proxy_client *client,
 
 	switch (type) {
 	case 0x00:
-		memset(client->filter, 0, sizeof(client->filter));
+		(void)memset(client->filter, 0, sizeof(client->filter));
 		client->filter_type = WHITELIST;
 		break;
 	case 0x01:
-		memset(client->filter, 0, sizeof(client->filter));
+		(void)memset(client->filter, 0, sizeof(client->filter));
 		client->filter_type = BLACKLIST;
 		break;
 	default:
@@ -224,7 +225,7 @@ static void send_filter_status(struct bt_mesh_proxy_client *client,
 		net_buf_simple_add_u8(buf, 0x01);
 	}
 
-	for (filter_size = 0, i = 0; i < ARRAY_SIZE(client->filter); i++) {
+	for (filter_size = 0U, i = 0; i < ARRAY_SIZE(client->filter); i++) {
 		if (client->filter[i] != BT_MESH_ADDR_UNASSIGNED) {
 			filter_size++;
 		}
@@ -360,7 +361,7 @@ void bt_mesh_proxy_identity_start(struct bt_mesh_subnet *sub)
 void bt_mesh_proxy_identity_stop(struct bt_mesh_subnet *sub)
 {
 	sub->node_id = BT_MESH_NODE_IDENTITY_STOPPED;
-	sub->node_id_start = 0;
+	sub->node_id_start = 0U;
 }
 
 int bt_mesh_proxy_identity_enable(void)
@@ -544,7 +545,7 @@ static void proxy_connected(struct bt_conn *conn, u8_t err)
 
 	client->conn = bt_conn_ref(conn);
 	client->filter_type = NONE;
-	memset(client->filter, 0, sizeof(client->filter));
+	(void)memset(client->filter, 0, sizeof(client->filter));
 	net_buf_simple_reset(&client->buf);
 }
 
@@ -998,7 +999,7 @@ static int node_id_adv(struct bt_mesh_subnet *sub)
 		return err;
 	}
 
-	memset(tmp, 0, 6);
+	(void)memset(tmp, 0, 6);
 	memcpy(tmp + 6, proxy_svc_data + 11, 8);
 	sys_put_be16(bt_mesh_primary_addr(), tmp + 14);
 

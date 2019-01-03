@@ -65,7 +65,7 @@ int sys_bitfield_find_first_clear(const unsigned long *bitmap,
 	 * By bitwise negating the bitmap, we are actually implemeting
 	 * ffc (find first clear) using ffs (find first set).
 	 */
-	for (cnt = 0; cnt < words; cnt++) {
+	for (cnt = 0U; cnt < words; cnt++) {
 		neg_bitmap = ~bitmap[cnt];
 		if (neg_bitmap == 0)	/* all full */
 			continue;
@@ -108,7 +108,7 @@ struct parameter *alloc_parameter(void)
 	}
 	sys_bitfield_set_bit((mem_addr_t) params_allocation, allocation_index);
 	param = params + allocation_index;
-	memset(param, 0, sizeof(*param));
+	(void)memset(param, 0, sizeof(*param));
 	return param;
 }
 

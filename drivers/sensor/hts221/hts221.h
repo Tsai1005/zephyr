@@ -4,17 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __SENSOR_HTS221_H__
-#define __SENSOR_HTS221_H__
+#ifndef ZEPHYR_DRIVERS_SENSOR_HTS221_HTS221_H_
+#define ZEPHYR_DRIVERS_SENSOR_HTS221_HTS221_H_
 
 #include <device.h>
 #include <misc/util.h>
 #include <zephyr/types.h>
 #include <gpio.h>
-
-#define SYS_LOG_DOMAIN "HTS221"
-#define SYS_LOG_LEVEL CONFIG_SYS_LOG_SENSOR_LEVEL
-#include <logging/sys_log.h>
 
 #define HTS221_I2C_ADDR			0x5F
 #define HTS221_AUTOINCREMENT_ADDR	BIT(7)

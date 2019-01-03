@@ -14,8 +14,16 @@
 #include <clock_control.h>
 #include <misc/util.h>
 #include <kernel.h>
-#include <board.h>
+#include <soc.h>
 #include <rtc.h>
+
+#if defined(CONFIG_SOC_SERIES_STM32L4X)
+#define EXTI_LINE	LL_EXTI_LINE_18
+#elif defined(CONFIG_SOC_SERIES_STM32F4X) \
+	|| defined(CONFIG_SOC_SERIES_STM32F3X)	\
+	|| defined(CONFIG_SOC_SERIES_STM32F7X)
+#define EXTI_LINE	LL_EXTI_LINE_17
+#endif
 
 #define EPOCH_OFFSET 946684800
 
@@ -193,7 +201,7 @@ void rtc_stm32_isr(void *arg)
 		LL_RTC_DisableIT_ALRA(RTC);
 	}
 
-	LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_18);
+	LL_EXTI_ClearFlag_0_31(EXTI_LINE);
 }
 
 static int rtc_stm32_init(struct device *dev)
@@ -206,7 +214,10 @@ static int rtc_stm32_init(struct device *dev)
 	k_sem_init(DEV_SEM(dev), 1, UINT_MAX);
 	DEV_DATA(dev)->cb_fn = NULL;
 
-	clock_control_on(clk, (clock_control_subsys_t *) &cfg->pclken);
+	if (clock_control_on(clk,
+		(clock_control_subsys_t *) &cfg->pclken) != 0) {
+		return -EIO;
+	}
 
 	LL_PWR_EnableBkUpAccess();
 	LL_RCC_ForceBackupDomainReset();
@@ -245,8 +256,8 @@ static int rtc_stm32_init(struct device *dev)
 
 	LL_RTC_EnableShadowRegBypass(RTC);
 
-	LL_EXTI_EnableIT_0_31(LL_EXTI_LINE_18);
-	LL_EXTI_EnableRisingTrig_0_31(LL_EXTI_LINE_18);
+	LL_EXTI_EnableIT_0_31(EXTI_LINE);
+	LL_EXTI_EnableRisingTrig_0_31(EXTI_LINE);
 
 	rtc_stm32_irq_config(dev);
 
@@ -294,7 +305,7 @@ DEVICE_AND_API_INIT(rtc_stm32, CONFIG_RTC_0_NAME, &rtc_stm32_init,
 
 static void rtc_stm32_irq_config(struct device *dev)
 {
-	IRQ_CONNECT(CONFIG_RTC_0_IRQ, CONFIG_RTC_0_IRQ_PRI,
+	IRQ_CONNECT(DT_RTC_0_IRQ, CONFIG_RTC_0_IRQ_PRI,
 		    rtc_stm32_isr, DEVICE_GET(rtc_stm32), 0);
-	irq_enable(CONFIG_RTC_0_IRQ);
+	irq_enable(DT_RTC_0_IRQ);
 }

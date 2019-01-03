@@ -40,7 +40,6 @@
 
 #include <zephyr.h>
 #include <misc/reboot.h>
-#include <board.h>
 #include <device.h>
 #include <string.h>
 #include <nvs/nvs.h>
@@ -74,9 +73,9 @@ void main(void)
 	int rc = 0, cnt = 0, cnt_his = 0;
 	char buf[16];
 	u8_t key[8], longarray[128];
-	u32_t reboot_counter = 0, reboot_counter_his;
+	u32_t reboot_counter = 0U, reboot_counter_his;
 
-	rc = nvs_init(&fs, FLASH_DEV_NAME);
+	rc = nvs_init(&fs, DT_FLASH_DEV_NAME);
 	if (rc) {
 		printk("Flash Init failed\n");
 	}
@@ -87,7 +86,7 @@ void main(void)
 	 */
 	rc = nvs_read(&fs, ADDRESS_ID, &buf, sizeof(buf));
 	if (rc > 0) { /* item was found, show it */
-		printk("Entry: %d, Address: %s\n", ADDRESS_ID, buf);
+		printk("Id: %d, Address: %s\n", ADDRESS_ID, buf);
 	} else   {/* item was not found, add it */
 		strcpy(buf, "192.168.1.1");
 		printk("No address found, adding %s at id %d\n", buf,
@@ -166,7 +165,7 @@ void main(void)
 		/* entry was not found, add it if reboot_counter = 0*/
 		if (reboot_counter == 0) {
 			printk("Longarray not found, adding it as id %d\n",
-			       STRING_ID);
+			       LONG_ID);
 			for (int n = 0; n < sizeof(longarray); n++) {
 				longarray[n] = n;
 			}

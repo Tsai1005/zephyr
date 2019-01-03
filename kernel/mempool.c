@@ -10,12 +10,11 @@
 #include <init.h>
 #include <string.h>
 #include <misc/__assert.h>
+#include <stdbool.h>
 
 /* Linker-defined symbols bound the static pool structs */
 extern struct k_mem_pool _k_mem_pool_list_start[];
 extern struct k_mem_pool _k_mem_pool_list_end[];
-
-s64_t _tick_get(void);
 
 static struct k_mem_pool *get_pool(int id)
 {
@@ -56,10 +55,10 @@ int k_mem_pool_alloc(struct k_mem_pool *p, struct k_mem_block *block,
 	__ASSERT(!(_is_in_isr() && timeout != K_NO_WAIT), "");
 
 	if (timeout > 0) {
-		end = _tick_get() + _ms_to_ticks(timeout);
+		end = z_tick_get() + _ms_to_ticks(timeout);
 	}
 
-	while (1) {
+	while (true) {
 		u32_t level_num, block_num;
 
 		/* There is a "managed race" in alloc that can fail
@@ -87,14 +86,14 @@ int k_mem_pool_alloc(struct k_mem_pool *p, struct k_mem_block *block,
 		block->id.block = block_num;
 
 		if (ret == 0 || timeout == K_NO_WAIT ||
-		    (ret && ret != -ENOMEM)) {
+		    ret != -ENOMEM) {
 			return ret;
 		}
 
-		_pend_current_thread(irq_lock(), &p->wait_q, timeout);
+		(void)_pend_current_thread(irq_lock(), &p->wait_q, timeout);
 
 		if (timeout != K_FOREVER) {
-			timeout = end - _tick_get();
+			timeout = end - z_tick_get();
 
 			if (timeout < 0) {
 				break;
@@ -192,8 +191,8 @@ void *k_calloc(size_t nmemb, size_t size)
 	}
 
 	ret = k_malloc(bounds);
-	if (ret) {
-		memset(ret, 0, bounds);
+	if (ret != NULL) {
+		(void)memset(ret, 0, bounds);
 	}
 	return ret;
 }
@@ -208,7 +207,7 @@ void *z_thread_malloc(size_t size)
 {
 	void *ret;
 
-	if (_current->resource_pool) {
+	if (_current->resource_pool != NULL) {
 		ret = k_mem_pool_malloc(_current->resource_pool, size);
 	} else {
 		ret = NULL;

@@ -71,12 +71,12 @@ int _impl_k_msgq_alloc_init(struct k_msgq *q, size_t msg_size,
 	int ret;
 	size_t total_size;
 
-	if (__builtin_umul_overflow((u32_t)msg_size, max_msgs,
-				    (u32_t *)&total_size)) {
+	if (__builtin_umul_overflow((unsigned int)msg_size, max_msgs,
+				    (unsigned int *)&total_size)) {
 		ret = -EINVAL;
 	} else {
 		buffer = z_thread_malloc(total_size);
-		if (buffer) {
+		if (buffer != NULL) {
 			k_msgq_init(q, buffer, msg_size, max_msgs);
 			q->flags = K_MSGQ_FLAG_ALLOC;
 			ret = 0;
@@ -119,7 +119,7 @@ int _impl_k_msgq_put(struct k_msgq *q, void *data, s32_t timeout)
 	if (q->used_msgs < q->max_msgs) {
 		/* message queue isn't full */
 		pending_thread = _unpend_first_thread(&q->wait_q);
-		if (pending_thread) {
+		if (pending_thread != NULL) {
 			/* give message to waiting thread */
 			(void)memcpy(pending_thread->base.swap_data, data,
 			       q->msg_size);
@@ -202,7 +202,7 @@ int _impl_k_msgq_get(struct k_msgq *q, void *data, s32_t timeout)
 
 		/* handle first thread waiting to write (if any) */
 		pending_thread = _unpend_first_thread(&q->wait_q);
-		if (pending_thread) {
+		if (pending_thread != NULL) {
 			/* add thread's message to queue */
 			(void)memcpy(q->write_ptr, pending_thread->base.swap_data,
 			       q->msg_size);
@@ -242,6 +242,37 @@ Z_SYSCALL_HANDLER(k_msgq_get, msgq_p, data, timeout)
 	Z_OOPS(Z_SYSCALL_MEMORY_WRITE(data, q->msg_size));
 
 	return _impl_k_msgq_get(q, (void *)data, timeout);
+}
+#endif
+
+int _impl_k_msgq_peek(struct k_msgq *q, void *data)
+{
+	unsigned int key = irq_lock();
+	int result;
+
+	if (q->used_msgs > 0) {
+		/* take first available message from queue */
+		(void)memcpy(data, q->read_ptr, q->msg_size);
+		result = 0;
+	} else {
+		/* don't wait for a message to become available */
+		result = -ENOMSG;
+	}
+
+	irq_unlock(key);
+
+	return result;
+}
+
+#ifdef CONFIG_USERSPACE
+Z_SYSCALL_HANDLER(k_msgq_peek, msgq_p, data)
+{
+	struct k_msgq *q = (struct k_msgq *)msgq_p;
+
+	Z_OOPS(Z_SYSCALL_OBJ(q, K_OBJ_MSGQ));
+	Z_OOPS(Z_SYSCALL_MEMORY_WRITE(data, q->msg_size));
+
+	return _impl_k_msgq_peek(q, (void *)data);
 }
 #endif
 

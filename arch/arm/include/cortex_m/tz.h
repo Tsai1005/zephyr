@@ -11,8 +11,8 @@
  * TrustZone API for Cortex-M23/M33 CPUs implementing the Security Extension.
  */
 
-#ifndef _ARM_CORTEXM_TZ__H_
-#define _ARM_CORTEXM_TZ__H_
+#ifndef ZEPHYR_ARCH_ARM_INCLUDE_CORTEX_M_TZ_H_
+#define ZEPHYR_ARCH_ARM_INCLUDE_CORTEX_M_TZ_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -166,6 +166,23 @@ void tz_nonsecure_exception_prio_config(int secure_boost);
  * @return N/A
  */
 void tz_nbanked_exception_target_state_set(int secure_state);
+
+#if defined(CONFIG_ARMV7_M_ARMV8_M_FP)
+/**
+ * @brief Allow Non-Secure firmware to access the FPU
+ *
+ * Function allows the Non-Secure firmware to access the Floating Point Unit.
+ *
+ * Relevant for ARMv8-M MCUs supporting the Floating Point Extension.
+ *
+ * Note:
+ *
+ * This function shall only be called from Secure state.
+ *
+ * @return N/A
+ */
+void tz_nonsecure_fpu_access_enable(void);
+#endif /* CONFIG_ARMV7_M_ARMV8_M_FP */
 
 /**
  *
@@ -326,4 +343,4 @@ typedef void __attribute__((cmse_nonsecure_call)) (*tz_ns_func_ptr_t) (void);
 }
 #endif
 
-#endif /* _ARM_CORTEXM_TZ__H_ */
+#endif /* ZEPHYR_ARCH_ARM_INCLUDE_CORTEX_M_TZ_H_ */

@@ -34,7 +34,7 @@ void *z_queue_node_peek(sys_sfnode_t *node, bool needs_free)
 {
 	void *ret;
 
-	if (node && sys_sfnode_flags_get(node)) {
+	if ((node != NULL) && (sys_sfnode_flags_get(node) != (u8_t)0)) {
 		/* If the flag is set, then the enqueue operation for this item
 		 * did a behind-the scenes memory allocation of an alloc_node
 		 * struct, which is what got put in the queue. Free it and pass
@@ -121,13 +121,13 @@ static inline void handle_poll_events(struct k_queue *queue, u32_t state)
 
 void _impl_k_queue_cancel_wait(struct k_queue *queue)
 {
-	unsigned int key = irq_lock();
+	u32_t key = irq_lock();
 #if !defined(CONFIG_POLL)
 	struct k_thread *first_pending_thread;
 
 	first_pending_thread = _unpend_first_thread(&queue->wait_q);
 
-	if (first_pending_thread) {
+	if (first_pending_thread != NULL) {
 		prepare_thread_to_run(first_pending_thread, NULL);
 	}
 #else
@@ -142,16 +142,16 @@ Z_SYSCALL_HANDLER1_SIMPLE_VOID(k_queue_cancel_wait, K_OBJ_QUEUE,
 			       struct k_queue *);
 #endif
 
-static int queue_insert(struct k_queue *queue, void *prev, void *data,
-			bool alloc)
+static s32_t queue_insert(struct k_queue *queue, void *prev, void *data,
+			  bool alloc)
 {
-	unsigned int key = irq_lock();
+	u32_t key = irq_lock();
 #if !defined(CONFIG_POLL)
 	struct k_thread *first_pending_thread;
 
 	first_pending_thread = _unpend_first_thread(&queue->wait_q);
 
-	if (first_pending_thread) {
+	if (first_pending_thread != NULL) {
 		prepare_thread_to_run(first_pending_thread, data);
 		_reschedule(key);
 		return 0;
@@ -163,7 +163,7 @@ static int queue_insert(struct k_queue *queue, void *prev, void *data,
 		struct alloc_node *anode;
 
 		anode = z_thread_malloc(sizeof(*anode));
-		if (!anode) {
+		if (anode == NULL) {
 			return -ENOMEM;
 		}
 		anode->data = data;
@@ -198,7 +198,7 @@ void k_queue_prepend(struct k_queue *queue, void *data)
 	(void)queue_insert(queue, NULL, data, false);
 }
 
-int _impl_k_queue_alloc_append(struct k_queue *queue, void *data)
+s32_t _impl_k_queue_alloc_append(struct k_queue *queue, void *data)
 {
 	return queue_insert(queue, sys_sflist_peek_tail(&queue->data_q), data,
 			    true);
@@ -214,7 +214,7 @@ Z_SYSCALL_HANDLER(k_queue_alloc_append, queue, data)
 }
 #endif
 
-int _impl_k_queue_alloc_prepend(struct k_queue *queue, void *data)
+s32_t _impl_k_queue_alloc_prepend(struct k_queue *queue, void *data)
 {
 	return queue_insert(queue, NULL, data, true);
 }
@@ -235,14 +235,19 @@ void k_queue_append_list(struct k_queue *queue, void *head, void *tail)
 
 	unsigned int key = irq_lock();
 #if !defined(CONFIG_POLL)
-	struct k_thread *thread;
-
-	while (head && ((thread = _unpend_first_thread(&queue->wait_q)))) {
-		prepare_thread_to_run(thread, head);
-		head = *(void **)head;
-	}
+	struct k_thread *thread = NULL;
 
 	if (head) {
+		thread = _unpend_first_thread(&queue->wait_q);
+	}
+
+	while ((head != NULL) && (thread != NULL)) {
+		prepare_thread_to_run(thread, head);
+		head = *(void **)head;
+		thread = _unpend_first_thread(&queue->wait_q);
+	}
+
+	if (head != NULL) {
 		sys_sflist_append_list(&queue->data_q, head, tail);
 	}
 
@@ -303,7 +308,7 @@ static void *k_queue_poll(struct k_queue *queue, s32_t timeout)
 		val = z_queue_node_peek(sys_sflist_get(&queue->data_q), true);
 		irq_unlock(key);
 
-		if (!val && timeout != K_FOREVER) {
+		if ((val == NULL) && (timeout != K_FOREVER)) {
 			elapsed = k_uptime_get_32() - start;
 			done = elapsed > timeout;
 		}
@@ -342,7 +347,7 @@ void *_impl_k_queue_get(struct k_queue *queue, s32_t timeout)
 #else
 	int ret = _pend_current_thread(key, &queue->wait_q, timeout);
 
-	return ret ? NULL : _current->base.swap_data;
+	return (ret != 0) ? NULL : _current->base.swap_data;
 #endif /* CONFIG_POLL */
 }
 

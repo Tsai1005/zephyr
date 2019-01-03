@@ -7,9 +7,9 @@
 /**
  * @file
  *
- * @brief Sample app to illustrate dma transfer on Intel_S1000.
+ * @brief Sample app to illustrate dma transfer on Intel S1000 CRB.
  *
- * Intel_S1000 - Xtensa
+ * Intel S1000 CRB - Xtensa
  * --------------------
  *
  * The dma_cavs driver is being used.
@@ -67,7 +67,7 @@ static char rx_data2[RX_BUFF_SIZE] = { 0 };
 static char rx_data3[RX_BUFF_SIZE] = { 0 };
 static char rx_data4[RX_BUFF_SIZE] = { 0 };
 
-static void test_done(struct device *dev, u32_t id, int error_code)
+static void test_done(void *arg, u32_t id, int error_code)
 {
 	if (error_code == 0) {
 		printk("DMA transfer done\n");
@@ -127,10 +127,10 @@ static int test_task(u32_t chan_id, u32_t blen, u32_t block_count)
 	printk("Preparing DMA Controller: Chan_ID=%u, BURST_LEN=%u\n",
 			chan_id, blen);
 
-	memset(rx_data, 0, sizeof(rx_data));
-	memset(rx_data2, 0, sizeof(rx_data2));
-	memset(rx_data3, 0, sizeof(rx_data3));
-	memset(rx_data4, 0, sizeof(rx_data4));
+	(void)memset(rx_data, 0, sizeof(rx_data));
+	(void)memset(rx_data2, 0, sizeof(rx_data2));
+	(void)memset(rx_data3, 0, sizeof(rx_data3));
+	(void)memset(rx_data4, 0, sizeof(rx_data4));
 
 	dma_block_cfg.next_block = &dma_block_cfg2;
 	dma_block_cfg2.next_block = &dma_block_cfg3;

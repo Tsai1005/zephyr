@@ -4,11 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if 1
-#define SYS_LOG_DOMAIN "rpl-br/http"
-#define NET_SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
-#define NET_LOG_ENABLED 1
-#endif
+#include <logging/log.h>
+LOG_MODULE_DECLARE(net_rpl_br_sample, LOG_LEVEL_DBG);
 
 #include <zephyr.h>
 #include <stdio.h>
@@ -159,17 +156,17 @@ static struct http_server_urls http_urls;
 static bool check_file_size(const char *file, size_t size)
 {
 	if (size > MBEDTLS_SSL_MAX_CONTENT_LEN) {
-		NET_ERR("The MBEDTLS_SSL_MAX_CONTENT_LEN (%d) is too small.",
+		LOG_ERR("The MBEDTLS_SSL_MAX_CONTENT_LEN (%d) is too small.",
 			MBEDTLS_SSL_MAX_CONTENT_LEN);
-		NET_ERR("Cannot send %s (len %zd)", file, size);
+		LOG_ERR("Cannot send %s (len %zd)", file, size);
 
 		return false;
 	}
 
 	if (size > RESULT_BUF_SIZE) {
-		NET_ERR("The RESULT_BUF_SIZE (%d) is too small.",
+		LOG_ERR("The RESULT_BUF_SIZE (%d) is too small.",
 			RESULT_BUF_SIZE);
-		NET_ERR("Cannot send %s (len %zd)", file, size);
+		LOG_ERR("Cannot send %s (len %zd)", file, size);
 
 		return false;
 	}
@@ -196,7 +193,7 @@ static int setup_cert(struct net_app_ctx *ctx,
 	ret = mbedtls_x509_crt_parse(cert, echo_apps_cert_der,
 				     sizeof(echo_apps_cert_der));
 	if (ret != 0) {
-		NET_ERR("mbedtls_x509_crt_parse returned %d", ret);
+		LOG_ERR("mbedtls_x509_crt_parse returned %d", ret);
 		return ret;
 	}
 
@@ -204,7 +201,7 @@ static int setup_cert(struct net_app_ctx *ctx,
 				   sizeof(echo_apps_key_der),
 				   NULL, 0);
 	if (ret != 0) {
-		NET_ERR("mbedtls_pk_parse_key returned %d", ret);
+		LOG_ERR("mbedtls_pk_parse_key returned %d", ret);
 		return ret;
 	}
 
@@ -225,7 +222,7 @@ static int http_response(struct http_ctx *ctx, const char *header,
 
 	ret = http_add_header(ctx, header, dst, NULL);
 	if (ret < 0) {
-		NET_ERR("Cannot add HTTP header (%d)", ret);
+		LOG_ERR("Cannot add HTTP header (%d)", ret);
 		return ret;
 	}
 
@@ -236,7 +233,7 @@ static int http_response(struct http_ctx *ctx, const char *header,
 
 	ret = http_send_chunk(ctx, payload, payload_len, dst, NULL);
 	if (ret < 0) {
-		NET_ERR("Cannot send data to peer (%d)", ret);
+		LOG_ERR("Cannot send data to peer (%d)", ret);
 		return ret;
 	}
 
@@ -269,7 +266,7 @@ static int http_basic_auth(struct http_ctx *ctx,
 	int ret = 0;
 	char *ptr;
 
-	NET_DBG("");
+	LOG_DBG("");
 
 	ptr = strstr(ctx->http.field_values[0].key, auth_str);
 	if (ptr) {
@@ -280,7 +277,7 @@ static int http_basic_auth(struct http_ctx *ctx,
 		char *end, *colon;
 		int ret;
 
-		memset(output, 0, sizeof(output));
+		(void)memset(output, 0, sizeof(output));
 
 		end = strstr(ptr + 2, HTTP_CRLF);
 		if (!end) {
@@ -336,7 +333,7 @@ static int http_serve_index_html(struct http_ctx *ctx,
 
 	check_file_size("index.html", sizeof(index_html_gz));
 
-	NET_DBG("Sending index.html (%zd bytes) to client",
+	LOG_DBG("Sending index.html (%zd bytes) to client",
 		sizeof(index_html_gz));
 	return http_response(ctx, HTTP_STATUS_200_OK_GZ, index_html_gz,
 			     sizeof(index_html_gz), dst);
@@ -351,7 +348,7 @@ static int http_serve_style_css(struct http_ctx *ctx,
 
 	check_file_size("style.css", sizeof(style_css_gz));
 
-	NET_DBG("Sending style.css (%zd bytes) to client",
+	LOG_DBG("Sending style.css (%zd bytes) to client",
 		sizeof(style_css_gz));
 	return http_response(ctx, HTTP_STATUS_200_OK_GZ_CSS,
 			     style_css_gz,
@@ -368,7 +365,7 @@ static int http_serve_br_js(struct http_ctx *ctx,
 
 	check_file_size("br.js", sizeof(br_js_gz));
 
-	NET_DBG("Sending br.js (%zd bytes) to client",
+	LOG_DBG("Sending br.js (%zd bytes) to client",
 		sizeof(br_js_gz));
 	return http_response(ctx, HTTP_STATUS_200_OK_GZ_CSS,
 			     br_js_gz,
@@ -384,7 +381,7 @@ static int http_serve_favicon_ico(struct http_ctx *ctx,
 
 	check_file_size("favicon.ico", sizeof(favicon_ico_gz));
 
-	NET_DBG("Sending favicon.ico (%zd bytes) to client",
+	LOG_DBG("Sending favicon.ico (%zd bytes) to client",
 		sizeof(favicon_ico_gz));
 	return http_response(ctx, HTTP_STATUS_200_OK_GZ, favicon_ico_gz,
 			     sizeof(favicon_ico_gz), dst);
@@ -468,10 +465,10 @@ static int append_and_send_data(struct user_data *data,
 		ret = ws_send_msg_to_client(data->ctx, data->buf, len,
 					    opcode, final, data->dst, NULL);
 		if (ret < 0) {
-			NET_DBG("Could not send %d bytes data to client", len);
+			LOG_DBG("Could not send %d bytes data to client", len);
 			goto out;
 		} else {
-			NET_DBG("Sent %d bytes to client", len);
+			LOG_DBG("Sent %d bytes to client", len);
 		}
 
 		data->msg_count = 0;
@@ -486,10 +483,10 @@ static int append_and_send_data(struct user_data *data,
 	ret = ws_send_msg_to_client(data->ctx, data->buf, len,
 				    opcode, final, data->dst, NULL);
 	if (ret < 0) {
-		NET_DBG("Could not send %d bytes data to client", len);
+		LOG_DBG("Could not send %d bytes data to client", len);
 		goto out;
 	} else {
-		NET_DBG("Sent %d bytes to client", len);
+		LOG_DBG("Sent %d bytes to client", len);
 	}
 
 	data->msg_count++;
@@ -502,11 +499,11 @@ static inline u32_t remaining_lifetime(struct net_if_addr *ifaddr)
 {
 	s32_t remaining;
 
-	if (ifaddr->lifetime_timer_timeout == 0) {
+	if (ifaddr->lifetime.timer_timeout == 0) {
 		return 0;
 	}
 
-	remaining = k_uptime_get() - ifaddr->lifetime_timer_start;
+	remaining = k_uptime_get() - ifaddr->lifetime.timer_start;
 
 	return abs(remaining) / K_MSEC(1000);
 }
@@ -570,7 +567,7 @@ static void append_unicast_addr(struct net_if *iface, struct user_data *data)
 
 out:
 	if (ret < 0) {
-		NET_ERR("Out of mem");
+		LOG_ERR("Out of mem");
 	}
 }
 
@@ -615,7 +612,7 @@ static void iface_cb(struct net_if *iface, void *user_data)
 	int ret;
 
 	if (!net_if_is_up(iface)) {
-		NET_DBG("Interface %p is down", iface);
+		LOG_DBG("Interface %p is down", iface);
 		return;
 	}
 
@@ -657,7 +654,7 @@ static void iface_cb(struct net_if *iface, void *user_data)
 
 out:
 	if (ret < 0) {
-		NET_ERR("Out of mem");
+		LOG_ERR("Out of mem");
 	}
 }
 
@@ -980,7 +977,7 @@ static int send_rpl_configuration(struct http_ctx *ctx,
 
 	ret = add_rpl_config(&data);
 	if (ret < 0) {
-		NET_ERR("Could not send RPL configuration");
+		LOG_ERR("Could not send RPL configuration");
 		goto out;
 	}
 
@@ -1113,7 +1110,7 @@ static int send_ipv6_neighbors(struct http_ctx *ctx,
 	return ret;
 
 out:
-	NET_DBG("Cannot send neighbor information");
+	LOG_DBG("Cannot send neighbor information");
 
 	return ret;
 }
@@ -1159,7 +1156,7 @@ static int send_ipv6_neighbor_deletion(struct http_ctx *ctx,
 	return ret;
 
 out:
-	NET_DBG("Cannot send neighbor information");
+	LOG_DBG("Cannot send neighbor information");
 
 	return ret;
 }
@@ -1237,7 +1234,7 @@ static void append_route_iface(struct net_if *iface,
 	int ret;
 
 	if (!net_if_is_up(iface)) {
-		NET_DBG("Interface %p is down", iface);
+		LOG_DBG("Interface %p is down", iface);
 		return;
 	}
 
@@ -1266,7 +1263,7 @@ static void append_route_iface(struct net_if *iface,
 
 out:
 	if (ret < 0) {
-		NET_ERR("Out of mem");
+		LOG_ERR("Out of mem");
 	}
 }
 
@@ -1359,14 +1356,14 @@ static void calculate_edges(void)
 {
 	u8_t i, j, k;
 
-	k = 0;
+	k = 0U;
 
-	for (i = 1; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
+	for (i = 1U; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
 		if (!topology.nodes[i].used) {
 			continue;
 		}
 
-		for (j = 0; j < CONFIG_NET_IPV6_MAX_NEIGHBORS; j++) {
+		for (j = 0U; j < CONFIG_NET_IPV6_MAX_NEIGHBORS; j++) {
 			if (!topology.nodes[j].used) {
 				continue;
 			}
@@ -1411,7 +1408,7 @@ static int send_topology_information(struct http_ctx *ctx,
 		goto out;
 	}
 
-	for (i = 0; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
+	for (i = 0U; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
 		if (!topology.nodes[i].used) {
 			continue;
 		}
@@ -1450,7 +1447,7 @@ static int send_topology_information(struct http_ctx *ctx,
 		goto out;
 	}
 
-	for (i = 0; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
+	for (i = 0U; i < CONFIG_NET_IPV6_MAX_NEIGHBORS; i++) {
 		if (!topology.edges[i].used) {
 			continue;
 		}
@@ -1494,29 +1491,29 @@ static void ws_send_info(struct http_ctx *ctx,
 
 	ret = send_iface_configuration(ctx, dst);
 	if (ret < 0) {
-		NET_ERR("Cannot send interface configuration (%d)", ret);
+		LOG_ERR("Cannot send interface configuration (%d)", ret);
 	}
 
 	ret = send_rpl_configuration(ctx, dst);
 	if (ret < 0) {
-		NET_ERR("Cannot send RPL configuration (%d)", ret);
+		LOG_ERR("Cannot send RPL configuration (%d)", ret);
 	}
 
 	ret = send_ipv6_neighbors(ctx, dst, NULL);
 	if (ret < 0) {
-		NET_ERR("Cannot send neighbor information (%d)", ret);
+		LOG_ERR("Cannot send neighbor information (%d)", ret);
 		return;
 	}
 
 	ret = send_ipv6_routes(ctx, dst, NULL, NULL);
 	if (ret < 0) {
-		NET_ERR("Cannot send route information (%d)", ret);
+		LOG_ERR("Cannot send route information (%d)", ret);
 		return;
 	}
 
 	ret = send_topology_information(ctx, dst);
 	if (ret < 0) {
-		NET_ERR("Cannot send topology information (%d)", ret);
+		LOG_ERR("Cannot send topology information (%d)", ret);
 	}
 }
 
@@ -1543,7 +1540,7 @@ static void http_connected(struct http_ctx *ctx,
 	char url[32];
 	size_t len = min(sizeof(url) - 1, ctx->http.url_len);
 
-	NET_DBG("");
+	LOG_DBG("");
 
 	if (0 && (!rpl.auth_ok || !check_addr(ctx))) {
 		rpl.auth_ok = false;
@@ -1554,7 +1551,7 @@ static void http_connected(struct http_ctx *ctx,
 	memcpy(url, ctx->http.url, len);
 	url[len] = '\0';
 
-	NET_DBG("%s connect attempt URL %s",
+	LOG_DBG("%s connect attempt URL %s",
 		type == HTTP_CONNECTION ? "HTTP" :
 		(type == WS_CONNECTION ? "WS" : "<unknown>"), url);
 
@@ -1645,7 +1642,7 @@ static void handle_coap_request(struct http_ctx *ctx,
 
 	len = net_pkt_appdatalen(pkt);
 	if (len > MAX_PAYLOAD_LEN - 1) {
-		NET_ERR("Can't handle payload more than %d(%d)",
+		LOG_ERR("Can't handle payload more than %d(%d)",
 			MAX_PAYLOAD_LEN, len);
 		return;
 	}
@@ -1657,7 +1654,7 @@ static void handle_coap_request(struct http_ctx *ctx,
 
 	frag = net_frag_read(frag, pos, &pos, len, &payload[0]);
 	if (!frag && pos == 0xffff) {
-		NET_WARN("Failed to read payload");
+		LOG_WRN("Failed to read payload");
 		return;
 	}
 
@@ -1666,25 +1663,25 @@ static void handle_coap_request(struct http_ctx *ctx,
 	ret = json_obj_parse((char *)payload, len, coap_descr,
 			     ARRAY_SIZE(coap_descr), &req);
 	if (ret < 0) {
-		NET_ERR("Failed to parse JSON string %d", ret);
+		LOG_ERR("Failed to parse JSON string %d", ret);
 		return;
 	}
 
 	ret = net_addr_pton(AF_INET6, req.coap.ipv6_addr, &peer_addr);
 	if (ret < 0) {
-		NET_WARN("Invalid peer address %s", req.coap.ipv6_addr);
+		LOG_WRN("Invalid peer address %s", req.coap.ipv6_addr);
 		return;
 	}
 
 	if (strcmp(req.coap.command, "toggle") == 0) {
 		type = COAP_REQ_TOGGLE_LED;
 	} else {
-		NET_WARN("Invalid coap command %s", req.coap.command);
+		LOG_WRN("Invalid coap command %s", req.coap.command);
 		return;
 	}
 
 	coap_send_request(&peer_addr, type, NULL, NULL);
-	NET_DBG("Send CoAP request '%s'-'%s'", req.coap.command,
+	LOG_DBG("Send CoAP request '%s'-'%s'", req.coap.command,
 		req.coap.ipv6_addr);
 }
 
@@ -1696,19 +1693,19 @@ static void http_received(struct http_ctx *ctx,
 			  void *user_data)
 {
 	if (!pkt) {
-		NET_DBG("Received NULL packet for unknown reason");
+		LOG_DBG("Received NULL packet for unknown reason");
 		return;
 	}
 
 	if (!status) {
-		NET_DBG("Received %d bytes data", net_pkt_appdatalen(pkt));
+		LOG_DBG("Received %d bytes data", net_pkt_appdatalen(pkt));
 
 		if (!strncmp((char *)net_pkt_appdata(pkt), JSON_COAP_PREFIX,
 			     sizeof(JSON_COAP_PREFIX) - 1)) {
 			handle_coap_request(ctx, pkt, user_data);
 		}
 	} else {
-		NET_ERR("Receive error (%d)", status);
+		LOG_ERR("Receive error (%d)", status);
 	}
 
 	net_pkt_unref(pkt);
@@ -1719,14 +1716,14 @@ static void http_sent(struct http_ctx *ctx,
 		      void *user_data_send,
 		      void *user_data)
 {
-	NET_DBG("Data sent status %d", status);
+	LOG_DBG("Data sent status %d", status);
 }
 
 static void http_closed(struct http_ctx *ctx,
 			int status,
 			void *user_data)
 {
-	NET_DBG("Connection %p closed", ctx);
+	LOG_DBG("Connection %p closed", ctx);
 }
 
 static const char *get_string(int str_len, const char *str)
@@ -1744,7 +1741,7 @@ static enum http_verdict default_handler(struct http_ctx *ctx,
 					 enum http_connection_type type,
 					 const struct sockaddr *dst)
 {
-	NET_DBG("No handler for %s URL %s",
+	LOG_DBG("No handler for %s URL %s",
 		type == HTTP_CONNECTION ? "HTTP" : "WS",
 		get_string(ctx->http.url_len, ctx->http.url));
 
@@ -1761,7 +1758,7 @@ static void coap_obs_cb(struct coap_packet *response, void *user_data)
 
 	ret = send_topology_information(&http_ctx, ws_dst);
 	if (ret < 0) {
-		NET_ERR("Cannot send topology (%d)", ret);
+		LOG_ERR("Cannot send topology (%d)", ret);
 	}
 }
 
@@ -1770,7 +1767,7 @@ static void mgmt_cb(struct net_mgmt_event_callback *cb,
 		    u32_t mgmt_event, struct net_if *iface)
 {
 #if !defined(CONFIG_NET_L2_IEEE802154)
-	NET_DBG("CONFIG_NET_L2_IEEE802154 not enabled");
+	LOG_DBG("CONFIG_NET_L2_IEEE802154 not enabled");
 	return;
 #endif
 	struct net_if *iface_802154 = net_if_get_ieee802154();
@@ -1791,57 +1788,60 @@ static void mgmt_cb(struct net_mgmt_event_callback *cb,
 	if (mgmt_event == NET_EVENT_IPV6_NBR_ADD) {
 		nbr_info = (struct net_event_ipv6_nbr *)cb->info;
 		if (!nbr_info) {
-			NET_ERR("Invalid info received on event");
+			LOG_ERR("Invalid info received on event");
 			return;
 		}
 
 		nbr = net_ipv6_nbr_lookup(iface, &nbr_info->addr);
 		if (!nbr || !net_ipv6_nbr_data(nbr)) {
-			NET_ERR("Invalid neighbor data received");
+			LOG_ERR("Invalid neighbor data received");
 			return;
 		}
 
-		NET_DBG("NBR add %s", net_sprint_ipv6_addr(&nbr_info->addr));
+		LOG_DBG("NBR add %s",
+			log_strdup(net_sprint_ipv6_addr(&nbr_info->addr)));
 
 		ret = send_ipv6_neighbors(&http_ctx, ws_dst, nbr);
 		if (ret < 0) {
-			NET_ERR("Cannot send neighbor information (%d)", ret);
+			LOG_ERR("Cannot send neighbor information (%d)", ret);
 			return;
 		}
 	} else if (mgmt_event == NET_EVENT_IPV6_NBR_DEL) {
 		nbr_info = (struct net_event_ipv6_nbr *)cb->info;
 		if (!nbr_info) {
-			NET_ERR("Invalid info received on event");
+			LOG_ERR("Invalid info received on event");
 			return;
 		}
 
-		NET_DBG("NBR del %s", net_sprint_ipv6_addr(&nbr_info->addr));
+		LOG_DBG("NBR del %s",
+			log_strdup(net_sprint_ipv6_addr(&nbr_info->addr)));
 
 		ret = send_ipv6_neighbor_deletion(&http_ctx, ws_dst, iface,
 						  &nbr_info->addr);
 		if (ret < 0) {
-			NET_ERR("Cannot send neighbor information (%d)", ret);
+			LOG_ERR("Cannot send neighbor information (%d)", ret);
 			return;
 		}
 	} else if (mgmt_event == NET_EVENT_IPV6_ROUTE_ADD) {
 		route_info = (struct net_event_ipv6_route *)cb->info;
 		if (!route_info) {
-			NET_ERR("Invalid info received on event");
+			LOG_ERR("Invalid info received on event");
 			return;
 		}
 
 		route = net_route_lookup(iface, &route_info->addr);
 		if (!route) {
-			NET_ERR("Invalid route entry received");
+			LOG_ERR("Invalid route entry received");
 			return;
 		}
 
-		NET_DBG("ROUTE add addr %s/%d",
-			net_sprint_ipv6_addr(&route_info->addr),
+		LOG_DBG("ROUTE add addr %s/%d",
+			log_strdup(net_sprint_ipv6_addr(&route_info->addr)),
 			route_info->prefix_len);
 		{
-			NET_DBG("ROUTE add nexthop %s",
-				net_sprint_ipv6_addr(&route_info->nexthop));
+			LOG_DBG("ROUTE add nexthop %s",
+				log_strdup(net_sprint_ipv6_addr(
+						   &route_info->nexthop)));
 
 		}
 
@@ -1850,29 +1850,27 @@ static void mgmt_cb(struct net_mgmt_event_callback *cb,
 
 		ret = send_ipv6_routes(&http_ctx, ws_dst, iface, route);
 		if (ret < 0) {
-			NET_ERR("Cannot send route information (%d)", ret);
+			LOG_ERR("Cannot send route information (%d)", ret);
 			return;
 		}
 	} else if (mgmt_event == NET_EVENT_IPV6_ROUTE_DEL) {
 		route_info = (struct net_event_ipv6_route *)cb->info;
 		if (!route_info) {
-			NET_ERR("Invalid info received on event");
+			LOG_ERR("Invalid info received on event");
 			return;
 		}
 
-		NET_DBG("ROUTE del addr %s/%d",
-			net_sprint_ipv6_addr(&route_info->addr),
+		LOG_DBG("ROUTE del addr %s/%d",
+			log_strdup(net_sprint_ipv6_addr(&route_info->addr)),
 			route_info->prefix_len);
-		{
-			NET_DBG("ROUTE del nexthop %s",
-				net_sprint_ipv6_addr(&route_info->nexthop));
-
-		}
+		LOG_DBG("ROUTE del nexthop %s",
+			log_strdup(net_sprint_ipv6_addr(
+					   &route_info->nexthop)));
 
 		ret = send_ipv6_route_deletion(&http_ctx, ws_dst, iface,
 					       route_info);
 		if (ret < 0) {
-			NET_ERR("Cannot send route information (%d)", ret);
+			LOG_ERR("Cannot send route information (%d)", ret);
 			return;
 		}
 
@@ -1880,7 +1878,7 @@ static void mgmt_cb(struct net_mgmt_event_callback *cb,
 
 		ret = send_topology_information(&http_ctx, ws_dst);
 		if (ret < 0) {
-			NET_ERR("Cannot send topology information (%d)", ret);
+			LOG_ERR("Cannot send topology information (%d)", ret);
 		}
 	}
 }
@@ -1926,7 +1924,7 @@ void start_http_server(struct net_if *iface)
 
 #elif ADDR_OPTION == 2
 	/* Accept any local listening address */
-	memset(&addr, 0, sizeof(addr));
+	(void)memset(&addr, 0, sizeof(addr));
 
 	net_sin(&addr)->sin_port = htons(ZEPHYR_PORT);
 
@@ -1937,7 +1935,7 @@ void start_http_server(struct net_if *iface)
 
 #elif ADDR_OPTION == 3
 	/* Set the bind address according to your configuration */
-	memset(&addr, 0, sizeof(addr));
+	(void)memset(&addr, 0, sizeof(addr));
 
 	/* In this example, listen only IPv6 */
 	addr.sa_family = AF_INET6;
@@ -1945,7 +1943,7 @@ void start_http_server(struct net_if *iface)
 
 	ret = net_ipaddr_parse(ZEPHYR_ADDR, strlen(ZEPHYR_ADDR), &addr);
 	if (ret < 0) {
-		NET_ERR("Cannot set local address (%d)", ret);
+		LOG_ERR("Cannot set local address (%d)", ret);
 		panic(NULL);
 	}
 
@@ -1969,7 +1967,7 @@ void start_http_server(struct net_if *iface)
 			       result, sizeof(result),
 			       "Zephyr HTTP Server for border router", NULL);
 	if (ret < 0) {
-		NET_ERR("Cannot init web server (%d)", ret);
+		LOG_ERR("Cannot init web server (%d)", ret);
 		return;
 	}
 
@@ -1992,7 +1990,7 @@ void start_http_server(struct net_if *iface)
 				  https_stack,
 				  K_THREAD_STACK_SIZEOF(https_stack));
 	if (ret < 0) {
-		NET_ERR("Cannot enable TLS support (%d)", ret);
+		LOG_ERR("Cannot enable TLS support (%d)", ret);
 	}
 #endif
 

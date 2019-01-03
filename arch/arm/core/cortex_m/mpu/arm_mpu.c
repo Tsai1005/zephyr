@@ -8,11 +8,13 @@
 #include <init.h>
 #include <kernel.h>
 #include <soc.h>
-#include <arch/arm/cortex_m/cmsis.h>
-#include <arch/arm/cortex_m/mpu/arm_mpu.h>
+#include <arch/arm/cortex_m/mpu/arm_core_mpu_dev.h>
 #include <arch/arm/cortex_m/mpu/arm_core_mpu.h>
-#include <logging/sys_log.h>
 #include <linker/linker-defs.h>
+
+#define LOG_LEVEL CONFIG_MPU_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_DECLARE(mpu);
 
 #if defined(CONFIG_CPU_CORTEX_M0PLUS) || \
 	defined(CONFIG_CPU_CORTEX_M3) || \
@@ -69,12 +71,15 @@ void arm_core_mpu_enable(void)
  */
 void arm_core_mpu_disable(void)
 {
+	/* Force any outstanding transfers to complete before disabling MPU */
+	__DMB();
+
 	/* Disable MPU */
 	MPU->CTRL = 0;
 }
 
 #if defined(CONFIG_USERSPACE) || defined(CONFIG_MPU_STACK_GUARD) || \
-	defined(CONFIG_APPLICATION_MEMORY)
+	defined(CONFIG_APPLICATION_MEMORY) || defined(CONFIG_NOCACHE_MEMORY)
 
 /**
  * This internal function is utilized by the MPU driver to parse the intent
@@ -87,6 +92,11 @@ static inline int _get_region_attr_by_type(arm_mpu_region_attr_t *p_attr,
 	u32_t type, u32_t base, u32_t size)
 {
 	switch (type) {
+#ifdef CONFIG_NOCACHE_MEMORY
+	case NOCACHE_MEMORY_REGION:
+		_get_mpu_ram_nocache_region_attr(p_attr, P_RW_U_NA, base, size);
+		return 0;
+#endif
 #ifdef CONFIG_USERSPACE
 	case THREAD_STACK_REGION:
 		_get_mpu_ram_region_attr(p_attr, P_RW_U_RW, base, size);
@@ -149,7 +159,7 @@ static inline void _disable_region(u32_t r_index)
 		"Index 0x%x out-of-bound (supported regions: 0x%x)\n",
 		r_index,
 		_get_num_regions());
-	SYS_LOG_DBG("disable region 0x%x", r_index);
+	LOG_DBG("disable region 0x%x", r_index);
 	/* Disable region */
 	ARM_MPU_ClrRegion(r_index);
 }
@@ -165,7 +175,7 @@ void arm_core_mpu_configure(u8_t type, u32_t base, u32_t size)
 {
 	struct arm_mpu_region region_conf;
 
-	SYS_LOG_DBG("Region info: 0x%x 0x%x", base, size);
+	LOG_DBG("Region info: 0x%x 0x%x", base, size);
 	u32_t region_index = _get_region_index_by_type(type);
 
 	if (_get_region_attr_by_type(&region_conf.attr, type, base, size)) {
@@ -183,14 +193,23 @@ void arm_core_mpu_configure(u8_t type, u32_t base, u32_t size)
 #if defined(CONFIG_USERSPACE)
 void arm_core_mpu_configure_user_context(struct k_thread *thread)
 {
-	u32_t base = (u32_t)thread->stack_obj;
-	u32_t size = thread->stack_info.size;
-
 	if (!thread->arch.priv_stack_start) {
 		_disable_region(_get_region_index_by_type(
 			THREAD_STACK_REGION));
 		return;
 	}
+
+	u32_t base = (u32_t)thread->stack_obj;
+	u32_t size = thread->stack_info.size;
+#if !defined(CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT)
+	/* In user-mode the thread stack will include the (optional)
+	 * guard area. For MPUs with arbitrary base address and limit
+	 * it is essential to include this size increase, to avoid
+	 * MPU faults.
+	 */
+	size += thread->stack_info.start - thread->stack_obj;
+#endif
+
 	arm_core_mpu_configure(THREAD_STACK_REGION, base, size);
 }
 
@@ -208,22 +227,22 @@ void arm_core_mpu_configure_mem_domain(struct k_mem_domain *mem_domain)
 	struct arm_mpu_region region_conf;
 
 	if (mem_domain) {
-		SYS_LOG_DBG("configure domain: %p", mem_domain);
+		LOG_DBG("configure domain: %p", mem_domain);
 		num_partitions = mem_domain->num_partitions;
 		pparts = mem_domain->partitions;
 	} else {
-		SYS_LOG_DBG("disable domain partition regions");
-		num_partitions = 0;
+		LOG_DBG("disable domain partition regions");
+		num_partitions = 0U;
 		pparts = NULL;
 	}
 
 	for (; region_index < _get_num_regions(); region_index++) {
 		if (num_partitions && pparts->size) {
-			SYS_LOG_DBG("set region 0x%x 0x%x 0x%x",
+			LOG_DBG("set region 0x%x 0x%x 0x%x",
 				    region_index, pparts->start, pparts->size);
 			region_conf.base = pparts->start;
 			_get_ram_region_attr_by_conf(&region_conf.attr,
-				pparts->attr,	pparts->start, pparts->size);
+				&pparts->attr, pparts->start, pparts->size);
 			_region_init(region_index, &region_conf);
 			num_partitions--;
 		} else {
@@ -246,14 +265,14 @@ void arm_core_mpu_configure_mem_partition(u32_t part_index,
 		_get_region_index_by_type(THREAD_DOMAIN_PARTITION_REGION);
 	struct arm_mpu_region region_conf;
 
-	SYS_LOG_DBG("configure partition index: %u", part_index);
+	LOG_DBG("configure partition index: %u", part_index);
 
 	if (part &&
 		(region_index + part_index < _get_num_regions())) {
-		SYS_LOG_DBG("set region 0x%x 0x%x 0x%x",
+		LOG_DBG("set region 0x%x 0x%x 0x%x",
 			    region_index + part_index, part->start, part->size);
 		_get_ram_region_attr_by_conf(&region_conf.attr,
-			part->attr, part->start, part->size);
+			&part->attr, part->start, part->size);
 		region_conf.base = part->start;
 		_region_init(region_index + part_index, &region_conf);
 	} else {
@@ -298,7 +317,7 @@ int arm_core_mpu_buffer_validate(void *addr, size_t size, int write)
 	return _mpu_buffer_validate(addr, size, write);
 }
 #endif /* CONFIG_USERSPACE */
-#endif /* USERSPACE || MPU_STACK_GUARD || APPLICATION_MEMORY */
+#endif /* USERSPACE || MPU_STACK_GUARD || APPLICATION_MEMORY || NOCACHE_MEMORY */
 
 /* ARM MPU Driver Initial Setup */
 
@@ -327,7 +346,7 @@ static int arm_mpu_init(struct device *arg)
 		return -1;
 	}
 
-	SYS_LOG_DBG("total region count: %d", _get_num_regions());
+	LOG_DBG("total region count: %d", _get_num_regions());
 
 	arm_core_mpu_disable();
 
@@ -335,14 +354,28 @@ static int arm_mpu_init(struct device *arg)
 	_mpu_init();
 
 	/* Configure regions */
-	for (r_index = 0; r_index < mpu_config.num_regions; r_index++) {
+	for (r_index = 0U; r_index < mpu_config.num_regions; r_index++) {
 		_region_init(r_index, &mpu_config.mpu_regions[r_index]);
 	}
 
-#if defined(CONFIG_APPLICATION_MEMORY)
+#if defined(CONFIG_NOCACHE_MEMORY) || defined(CONFIG_APPLICATION_MEMORY)
 	u32_t index, size;
 	struct arm_mpu_region region_conf;
+#endif
 
+#if defined(CONFIG_NOCACHE_MEMORY)
+	/* configure non-cached memory */
+	index = _get_region_index_by_type(NOCACHE_MEMORY_REGION);
+	size = (u32_t)&_nocache_ram_end - (u32_t)&_nocache_ram_start;
+	_get_region_attr_by_type(&region_conf.attr, NOCACHE_MEMORY_REGION,
+			(u32_t)&_nocache_ram_start, size);
+	region_conf.base = (u32_t)&_nocache_ram_start;
+	if (size > 0) {
+		_region_init(index, &region_conf);
+	}
+#endif /* CONFIG_NOCACHE_MEMORY */
+
+#if defined(CONFIG_APPLICATION_MEMORY)
 	/* configure app data portion */
 	index = _get_region_index_by_type(THREAD_APP_DATA_REGION);
 	size = (u32_t)&__app_ram_end - (u32_t)&__app_ram_start;

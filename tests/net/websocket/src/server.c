@@ -4,15 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#if defined(CONFIG_NET_DEBUG_WEBSOCKET)
-#define SYS_LOG_DOMAIN "test-ws-server"
-#define NET_SYS_LOG_LEVEL SYS_LOG_LEVEL_DEBUG
-#define NET_LOG_ENABLED 1
-#endif
-
 #include <zephyr.h>
 #include <errno.h>
 #include <stdio.h>
+
+#include <logging/log.h>
+LOG_MODULE_DECLARE(net_test, CONFIG_WEBSOCKET_LOG_LEVEL);
 
 #include <net/net_pkt.h>
 #include <net/net_core.h>
@@ -240,7 +237,6 @@ static void ws_closed(struct http_ctx *ctx,
 	NET_DBG("Connection %p closed", ctx);
 }
 
-#if defined(CONFIG_NET_DEBUG_WEBSOCKET) && (NET_SYS_LOG_LEVEL > 3)
 static const char *get_string(int str_len, const char *str)
 {
 	static char buf[64];
@@ -251,7 +247,6 @@ static const char *get_string(int str_len, const char *str)
 
 	return buf;
 }
-#endif
 
 static enum http_verdict default_handler(struct http_ctx *ctx,
 					 enum http_connection_type type,
@@ -289,7 +284,7 @@ void test_websocket_init_server(void)
 
 #elif ADDR_OPTION == 2
 	/* Accept any local listening address */
-	memset(&addr, 0, sizeof(addr));
+	(void)memset(&addr, 0, sizeof(addr));
 
 	net_sin(&addr)->sin_port = htons(ZEPHYR_PORT);
 
@@ -300,7 +295,7 @@ void test_websocket_init_server(void)
 
 #elif ADDR_OPTION == 3
 	/* Set the bind address according to your configuration */
-	memset(&addr, 0, sizeof(addr));
+	(void)memset(&addr, 0, sizeof(addr));
 
 	/* In this example, listen only IPv6 */
 	addr.sa_family = AF_INET6;

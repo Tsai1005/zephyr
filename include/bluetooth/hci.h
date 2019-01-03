@@ -5,8 +5,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __BT_HCI_H
-#define __BT_HCI_H
+#ifndef ZEPHYR_INCLUDE_BLUETOOTH_HCI_H_
+#define ZEPHYR_INCLUDE_BLUETOOTH_HCI_H_
 
 #include <toolchain.h>
 #include <zephyr/types.h>
@@ -30,10 +30,12 @@ extern "C" {
 #define BT_HCI_OWN_ADDR_RPA_OR_PUBLIC  0x02
 #define BT_HCI_OWN_ADDR_RPA_OR_RANDOM  0x03
 
+/** Bluetooth Device Address */
 typedef struct {
 	u8_t  val[6];
 } bt_addr_t;
 
+/** Bluetooth LE Device Address */
 typedef struct {
 	u8_t      type;
 	bt_addr_t a;
@@ -94,6 +96,9 @@ static inline bool bt_addr_le_is_identity(const bt_addr_le_t *addr)
 
 	return BT_ADDR_IS_STATIC(&addr->a);
 }
+
+#define BT_ENC_KEY_SIZE_MIN                     0x07
+#define BT_ENC_KEY_SIZE_MAX                     0x10
 
 /* HCI Error Codes */
 #define BT_HCI_ERR_SUCCESS                      0x00
@@ -1902,4 +1907,4 @@ int bt_hci_cmd_send_sync(u16_t opcode, struct net_buf *buf,
 }
 #endif
 
-#endif /* __BT_HCI_H */
+#endif /* ZEPHYR_INCLUDE_BLUETOOTH_HCI_H_ */

@@ -11,12 +11,20 @@ to run on the nRF52840 PCA10059 (USB Dongle) hardware. It provides
 support for the Nordic Semiconductor nRF52840 ARM Cortex-M4F CPU and
 the following devices:
 
-* :abbr:`NVIC (Nested Vectored Interrupt Controller)`
-* :abbr:`RTC (nRF RTC System Clock)`
-* UART
-* GPIO
+* :abbr:`ADC (Analog to Digital Converter)`
+* CLOCK
 * FLASH
-* RADIO (Bluetooth Low Energy)
+* :abbr:`GPIO (General Purpose Input Output)`
+* :abbr:`I2C (Inter-Integrated Circuit)`
+* :abbr:`MPU (Memory Protection Unit)`
+* :abbr:`NVIC (Nested Vectored Interrupt Controller)`
+* :abbr:`PWM (Pulse Width Modulation)`
+* RADIO (Bluetooth Low Energy and 802.15.4)
+* :abbr:`RTC (nRF RTC System Clock)`
+* :abbr:`SPI (Serial Peripheral Interface)`
+* :abbr:`UART (Universal asynchronous receiver-transmitter)`
+* :abbr:`USB (Universal Serial Bus)`
+* :abbr:`WDT (Watchdog Timer)`
 
 .. figure:: img/nrf52840_pca10059.jpg
      :width: 442px
@@ -26,7 +34,7 @@ the following devices:
      nRF52840 PCA10059
 
 More information about the board can be found at the
-`nRF52840 Dongle website`_. The `Nordic Semiconductor Infocenter`_
+`nRF52840 Dongle website`_. The `Nordic Semiconductor Documentation library`_
 contains the processor's information and the datasheet.
 
 Hardware
@@ -45,20 +53,38 @@ hardware features:
 +-----------+------------+----------------------+
 | Interface | Controller | Driver/Component     |
 +===========+============+======================+
-| NVIC      | on-chip    | nested vectored      |
-|           |            | interrupt controller |
+| ADC       | on-chip    | adc                  |
 +-----------+------------+----------------------+
-| RTC       | on-chip    | system clock         |
-+-----------+------------+----------------------+
-| GPIO      | on-chip    | gpio                 |
+| CLOCK     | on-chip    | clock_control        |
 +-----------+------------+----------------------+
 | FLASH     | on-chip    | flash                |
 +-----------+------------+----------------------+
-| RADIO     | on-chip    | Bluetooth            |
+| GPIO      | on-chip    | gpio                 |
++-----------+------------+----------------------+
+| I2C(M)    | on-chip    | i2c                  |
++-----------+------------+----------------------+
+| MPU       | on-chip    | arch/arm             |
++-----------+------------+----------------------+
+| NVIC      | on-chip    | arch/arm             |
++-----------+------------+----------------------+
+| PWM       | on-chip    | pwm                  |
++-----------+------------+----------------------+
+| RADIO     | on-chip    | Bluetooth,           |
+|           |            | ieee802154           |
++-----------+------------+----------------------+
+| RTC       | on-chip    | system clock         |
++-----------+------------+----------------------+
+| SPI(M/S)  | on-chip    | spi                  |
++-----------+------------+----------------------+
+| UART      | on-chip    | serial               |
++-----------+------------+----------------------+
+| USB       | on-chip    | usb                  |
++-----------+------------+----------------------+
+| WDT       | on-chip    | watchdog             |
 +-----------+------------+----------------------+
 
 Other hardware features are not supported by the Zephyr kernel.
-See `nRF52840 Dongle website`_ and `Nordic Semiconductor Infocenter`_
+See `nRF52840 Dongle website`_ and `Nordic Semiconductor Documentation library`_
 for a complete list of nRF52840 PCA10059 Development Kit board hardware features.
 
 Connections and IOs
@@ -133,7 +159,7 @@ References
 
 .. target-notes::
 
-.. _nRF52840 Dongle website: https://www.nordicsemi.com/eng/Products/nRF52840-Dongle
-.. _Nordic Semiconductor Infocenter: http://infocenter.nordicsemi.com/
+.. _nRF52840 Dongle website: https://www.nordicsemi.com/Software-and-Tools/Development-Kits/nRF52840-Dongle
+.. _Nordic Semiconductor Documentation library: https://www.nordicsemi.com/DocLib
 .. _J-Link Software and documentation pack: https://www.segger.com/jlink-software.html
 

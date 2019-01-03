@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _MMUSTRUCTS_H
-#define _MMUSTRUCTS_H
+#ifndef ZEPHYR_ARCH_X86_INCLUDE_MMUSTRUCTS_H_
+#define ZEPHYR_ARCH_X86_INCLUDE_MMUSTRUCTS_H_
 
 #define MMU_PAGE_SIZE 4096
 #define MMU_PAGE_MASK 0xfff
@@ -243,7 +243,7 @@
 
 #endif	/* CONFIG_X86_PAE_MODE */
 
-#ifdef CONFIG_X86_USERSPACE
+#ifdef CONFIG_X86_MMU
 
 /* Flags which are only available for PAE mode page tables  */
 #ifdef CONFIG_X86_PAE_MODE
@@ -297,7 +297,7 @@
 
 #endif	/* CONFIG_X86_PAE_MODE */
 
-#endif	 /* CONFIG_X86_USERSPACE */
+#endif	 /* CONFIG_X86_MMU */
 
 #ifndef _ASMLANGUAGE
 #include <zephyr/types.h>
@@ -778,4 +778,4 @@ struct x86_mmu_page_table {
 
 #endif /* _ASMLANGUAGE */
 
-#endif /* _MMUSTRUCTS_H */
+#endif /* ZEPHYR_ARCH_X86_INCLUDE_MMUSTRUCTS_H_ */

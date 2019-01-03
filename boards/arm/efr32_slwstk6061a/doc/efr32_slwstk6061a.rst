@@ -60,6 +60,8 @@ The efr32_slwstk6061a board configuration supports the following hardware featur
 +-----------+------------+-------------------------------------+
 | SYSTICK   | on-chip    | systick                             |
 +-----------+------------+-------------------------------------+
+| FLASH     | on-chip    | flash memory                        |
++-----------+------------+-------------------------------------+
 | GPIO      | on-chip    | gpio                                |
 +-----------+------------+-------------------------------------+
 | UART      | on-chip    | serial port-polling;                |
@@ -130,7 +132,7 @@ board. The adaptor provides:
 - A physical UART connection which is relayed over interface USB Serial port.
 - An Ethernet connection to support remote debugging.
 
-Flashing an application to EFR32-SLWstk6061A
+Flashing an application to EFR32-SLWSTK6061A
 --------------------------------------------
 
 The sample application :ref:`hello_world` is used for this example.
@@ -143,7 +145,14 @@ Build the Zephyr kernel and application:
 
 Connect the EFR32-SLWSTK6061A to your host computer using the USB port and you
 should see a USB Serial Port. Use `J-Link`_ or Silicon Labs Simplicity Studio
-to flash the generated zephyr.bin.
+to flash the generated zephyr.bin. On a Linux host with Zephyr SDK installed you
+can run:
+
+.. code-block:: console
+
+   ninja flash
+
+The command is using `OpenOCD`_ runner.
 
 Open a serial terminal (minicom, putty, etc.) with the following settings:
 
@@ -186,3 +195,6 @@ the following message:
 
 .. _J-Link-Downloads:
    https://www.segger.com/downloads/jlink
+
+.. _OpenOCD:
+   http://openocd.org/
